@@ -684,3 +684,37 @@ ul.clean li { margin-bottom: 10px; font-size: 14px; }
 .wl-add { font-weight: 700; }
 .wl-add.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .wl-kind { flex: none; font-size: 13px; opacity: .55; }
+
+/* ---- nakijken van schrijfoefeningen */
+.rvlist { list-style: none; margin: 0; padding: 0; }
+.rv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(0, 0, 0, .07);
+}
+.rv:first-child { border-top: 0; }
+.rv-wat {
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 7px;
+  background: rgba(220, 60, 60, .12);
+  color: #a32020;
+}
+.rv.bijna .rv-wat { background: rgba(230, 160, 30, .16); color: #8a5a00; }
+.rv-pijl { opacity: .5; }
+.rv-fix {
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 7px;
+  background: rgba(40, 160, 90, .14);
+  color: #1c6b3c;
+}
+.rv-uitleg {
+  flex: 1 1 100%;
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: .75;
+}

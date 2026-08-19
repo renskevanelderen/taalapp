@@ -3,6 +3,7 @@ import * as srs from "./srs.js";
 import * as speech from "./speech.js";
 import { check, parseSentence } from "./check.js";
 import { plan, promptForDay } from "./plan.js";
+import { review, buildVocab } from "./review.js";
 import * as FR from "../data/fr.js";
 import * as ES from "../data/es.js";
 import * as FRX from "../data/fr-extra.js";
@@ -250,8 +251,9 @@ function renderToday() {
 
     <div class="card flat" style="margin-top:20px">
       <h3>🔊 Geluid</h3>
-      <p class="small muted" style="margin:0 0 10px">Hoor je niets tijdens het oefenen? Tik hier: je hoort een voorbeeldzin in het ${code === "fr" ? "Frans" : "Spaans"}.</p>
+      <p class="small muted" style="margin:0 0 10px">Hoor je niets tijdens het oefenen? Tik hier. Daarna staat hieronder wat de app aan jouw kant ziet gebeuren.</p>
       <button class="btn ghost speak" data-probe="1" data-say="${esc(code === "fr" ? "Bonjour, comment ça va ?" : "Hola, ¿qué tal?")}">Test het geluid</button>
+      <div id="sounddiag" class="small muted" style="margin-top:10px"></div>
     </div>
 
     <div class="card flat" style="margin-top:20px">
@@ -493,19 +495,72 @@ function wireSpeak(locale) {
   for (const b of app.querySelectorAll(".speak")) {
     b.addEventListener("click", (e) => {
       e.preventDefault();
+      // speak() moet in dezelfde tel als de tik draaien, anders negeert iOS het.
       speech.unlock();
       speech.speak(b.dataset.say, locale, b.dataset.slow ? 0.55 : 0.9);
       // Stilte is lastig te debuggen: als de spraakmotor niets doet, zeg dat.
       setTimeout(() => {
         const s = speech.status(locale);
-        if (s) return toast(s);
-        if (b.dataset.probe)
-          toast(
-            "De app heeft de zin naar de stem gestuurd. Hoor je niets? Zet op je iPhone het belletje uit (het schuifje links naast de volumeknoppen) en draai het volume omhoog terwijl de zin speelt — media-volume staat los van je belvolume."
-          );
-      }, 500);
+        if (s) toast(s);
+      }, 900);
+      // De diagnose pas stellen als er iets te zien valt: eerder kijken levert
+      // een beschuldiging op waar de motor gewoon nog aan het opstarten was.
+      if (b.dataset.probe) {
+        const el = document.getElementById("sounddiag");
+        if (el) el.innerHTML = `<i>Even luisteren…</i>`;
+        let n = 0;
+        const kijk = setInterval(() => {
+          // Een halve update (nieuwe app.js, oude speech.js) mag hooguit een
+          // magere melding opleveren, nooit een scherm dat blijft hangen.
+          try {
+            const klaar = speech.diagnose(locale).ooitGestart || ++n > 12;
+            if (!klaar) return;
+            clearInterval(kijk);
+            showDiag(locale, speech.status(locale));
+          } catch (err) {
+            clearInterval(kijk);
+            if (el)
+              el.innerHTML = `De app is halverwege een update. Sluit hem helemaal af (veeg hem weg uit de app-overzicht) en open hem opnieuw.`;
+          }
+        }, 200);
+      }
     });
   }
+}
+
+// Het geluidskaartje op Vandaag: laat zien wat de app aan jouw kant waarneemt,
+// zodat "ik hoor niets" een vindbare oorzaak krijgt in plaats van een raadsel.
+function showDiag(locale, problem) {
+  const el = document.getElementById("sounddiag");
+  if (!el) return;
+  const d = speech.diagnose(locale);
+  const rows = [];
+
+  if (!d.ondersteund) {
+    el.innerHTML = `<b>Deze browser kan geen spraak afspelen.</b> Open de app in Safari.`;
+    return;
+  }
+  rows.push(`Stemmen op dit toestel: <b>${d.stemmen}</b>`);
+  rows.push(d.stem ? `Gekozen stem: <b>${esc(d.stem)}</b>` : `Gekozen stem: <b>geen</b>`);
+  rows.push(
+    d.ooitGestart
+      ? `De stem is begonnen te praten: <b>ja</b>`
+      : `De stem is begonnen te praten: <b>nee</b>`,
+  );
+  if (d.fout) rows.push(`Foutmelding: <b>${esc(d.fout)}</b>`);
+
+  let advies;
+  if (!d.stem) {
+    advies = `Er staat geen stem voor deze taal op je telefoon. Ga naar Instellingen → Toegankelijkheid → Gesproken materiaal → Stemmen en voeg ${locale.startsWith("fr") ? "Frans" : "Spaans"} toe. Kies een stem en wacht tot het downloaden klaar is.`;
+  } else if (!d.ooitGestart) {
+    advies = `De zin is wel verstuurd, maar de stem kwam nooit op gang. Dat wijst op de telefoon, niet op de app: zet de zijschakelaar links boven de volumeknoppen op geluid (geen oranje streepje) en tik dan opnieuw.`;
+  } else if (problem) {
+    advies = problem;
+  } else {
+    advies = `De stem heeft daadwerkelijk gesproken. Hoor je toch niets, draai dan het volume omhoog <i>terwijl</i> de zin speelt — dan regel je het mediavolume en niet je belvolume. Check ook of je AirPods of je auto nog verbonden zijn.`;
+  }
+
+  el.innerHTML = `${rows.join("<br>")}<p style="margin:8px 0 0">${advies}</p>`;
 }
 
 function wireGrades(isNew, isIntro) {
@@ -712,8 +767,10 @@ function renderWrite() {
     <div class="accents">${ACCENTS[code].map((a) => `<button data-ch="${a}">${a}</button>`).join("")}</div>
     <div class="row" style="margin-top:12px">
       <button class="btn" id="say">🔊 Voorlezen</button>
+      <button class="btn" id="checkit">🔍 Nakijken</button>
       <button class="btn primary" id="save">Opslaan</button>
     </div>
+    <div id="review"></div>
     ${doneToday ? `<p class="small muted" style="margin-top:10px">✅ Je hebt vandaag al geschreven. Nog een keer mag altijd.</p>` : ""}
 
     <h2>📚 Eerder geschreven</h2>
@@ -748,11 +805,83 @@ function renderWrite() {
     speech.speak(ta.value, deck().meta.locale, 0.85);
   });
 
+  document.getElementById("checkit").addEventListener("click", () => {
+    showReview(ta.value);
+  });
+
   document.getElementById("save").addEventListener("click", () => {
     if (!ta.value.trim()) return;
     store.addWriting(code, { date: key, prompt, text: ta.value.trim() });
+    const tekst = ta.value;
     render();
+    // Na opslaan meteen het commentaar tonen: anders sla je op en hoor je niets.
+    showReview(tekst);
   });
+}
+
+// De woordenschat is bij elke controle hetzelfde; één keer bouwen is genoeg.
+let vocabCache = { code: null, set: null, size: 0 };
+function vocabFor(d) {
+  const size = d.items.length;
+  if (vocabCache.code === code && vocabCache.size === size) return vocabCache.set;
+  const set = buildVocab(d, FREQ[code]);
+  vocabCache = { code, set, size };
+  return set;
+}
+
+function showReview(text) {
+  const box = document.getElementById("review");
+  if (!box) return;
+  if (!String(text).trim()) {
+    box.innerHTML = `<p class="small muted" style="margin-top:12px">Schrijf eerst een paar zinnen, dan kijk ik mee.</p>`;
+    return;
+  }
+
+  const d = deck();
+  const r = review(text, code, vocabFor(d), d);
+  const fouten = r.bevindingen.filter((b) => b.ernst === "fout").length;
+
+  const kop = fouten
+    ? `🔍 ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "opmerking" : "opmerkingen"}`
+    : r.bevindingen.length
+      ? `🙂 Bijna foutloos — ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "kleinigheid" : "kleinigheden"}`
+      : `✅ Ik zie niets fout`;
+
+  const lijst = r.bevindingen
+    .map(
+      (b) => `<li class="rv ${b.ernst}">
+        <span class="rv-wat">${esc(b.wat)}</span>
+        ${b.voorstel ? `<span class="rv-pijl">→</span><span class="rv-fix">${esc(b.voorstel)}</span>` : ""}
+        <span class="rv-uitleg">${esc(b.uitleg)}</span>
+      </li>`,
+    )
+    .join("");
+
+  box.innerHTML = `
+    <div class="card" style="margin-top:14px">
+      <h3>${kop}</h3>
+      <p class="small muted" style="margin:0 0 10px">${r.woorden} woorden, ${r.zinnen} ${r.zinnen === 1 ? "zin" : "zinnen"}.</p>
+      ${lijst ? `<ul class="rvlist">${lijst}</ul>` : ""}
+      ${r.meer ? `<p class="small muted">…en nog ${r.meer} andere. Pak eerst deze.</p>` : ""}
+      ${
+        r.gebruikt.length
+          ? `<p class="small" style="margin:10px 0 0">💪 Je gebruikte woorden die je aan het leren bent: <b>${r.gebruikt.map(esc).join(", ")}</b>.</p>`
+          : ""
+      }
+      ${
+        r.onbekend.length
+          ? `<p class="small muted" style="margin:10px 0 0">${
+              r.onbekend.length === 1
+                ? `Dit woord staat niet in mijn woordenlijst, dus daar heb ik niets over gezegd: <b>${esc(r.onbekend[0])}</b>. Dat betekent níét dat het fout is.`
+                : `Deze ${r.onbekend.length} woorden staan niet in mijn woordenlijst, dus daar heb ik niets over gezegd: <b>${r.onbekend.slice(0, 12).map(esc).join(", ")}</b>. Dat betekent níét dat ze fout zijn.`
+            }</p>`
+          : ""
+      }
+      <p class="small muted" style="margin:12px 0 0; border-top:1px solid rgba(0,0,0,.08); padding-top:10px">
+        Wat dit wel en niet is: ik controleer accenten, spelling tegen je eigen woordenlijst, en een reeks vaste valkuilen voor Nederlandstaligen. Ik beoordeel <i>geen</i> zinsbouw, woordkeus of of je verhaal klopt. Geen opmerkingen is dus niet hetzelfde als foutloos.
+      </p>
+    </div>`;
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 // ---------------------------------------------------------------- plan
