@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Taal — Frans &amp; Spaans</title>
+<meta name="theme-color" content="#f4f7ff" id="themecolor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Taal">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+<header id="topbar">
+  <div class="langswitch" id="langswitch"></div>
+  <div class="streak" id="streak"></div>
+</header>
+
+<main id="app"></main>
+
+<nav id="tabs">
+  <button data-view="today"><span class="ico">🎯</span><span>Vandaag</span></button>
+  <button data-view="write"><span class="ico">✍️</span><span>Schrijven</span></button>
+  <button data-view="plan"><span class="ico">🗺️</span><span>Plan</span></button>
+  <button data-view="stats"><span class="ico">📈</span><span>Voortgang</span></button>
+</nav>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

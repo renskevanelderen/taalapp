@@ -1,0 +1,592 @@
+/* ============================================================
+   Taalapp — licht, kleurrijk, en per taal een eigen gezicht.
+
+   Frans  = koel blauw, serif-koppen, strakke hoeken, croissant-warmte.
+   Spaans = warm oranje/geel, vette schreefloze koppen, ronde hoeken.
+
+   De taal staat als data-lang op <html>. Alles hieronder hangt
+   daaraan, dus een taalwissel verandert het hele scherm.
+   ============================================================ */
+
+:root {
+  --good: #2f9e44;
+  --near: #f08c00;
+  --bad: #e03131;
+  --white: #ffffff;
+
+  /* wordt per taal overschreven */
+  --bg: #f5f7ff;
+  --bg-2: #e9edff;
+  --surface: #ffffff;
+  --tint: #eef1ff;
+  --ink: #17203a;
+  --muted: #5d6a86;
+  --line: #dfe4f2;
+  --accent: #3b5bdb;
+  --accent-2: #e03131;
+  --accent-soft: rgba(59, 91, 219, 0.12);
+  --grad: linear-gradient(135deg, #2f4fd0, #4c8bf5);
+  --radius: 16px;
+  --radius-lg: 20px;
+  --display: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --display-weight: 700;
+  --display-spacing: -0.02em;
+  --shadow: 0 2px 4px rgba(23, 32, 58, 0.05), 0 8px 24px rgba(23, 32, 58, 0.07);
+}
+
+/* ---------- Frans: le carnet bleu ---------- */
+html[data-lang="fr"] {
+  --bg: #f4f7ff;
+  --bg-2: #dfe7ff;
+  --surface: #ffffff;
+  --tint: #edf1ff;
+  --ink: #16203c;
+  --muted: #5b6786;
+  --line: #dde3f5;
+  --accent: #3b5bdb;
+  --accent-2: #e8455f;
+  --accent-soft: rgba(59, 91, 219, 0.13);
+  --grad: linear-gradient(135deg, #2f4fd0, #4c8bf5);
+  --radius: 14px;
+  --radius-lg: 18px;
+  --display: Georgia, "Times New Roman", serif;
+  --display-weight: 700;
+  --display-spacing: -0.01em;
+}
+
+/* ---------- Spaans: el sol ---------- */
+html[data-lang="es"] {
+  --bg: #fff8ee;
+  --bg-2: #ffe9c9;
+  --surface: #ffffff;
+  --tint: #fff1dd;
+  --ink: #3a2412;
+  --muted: #8a6a4c;
+  --line: #f2ddc2;
+  --accent: #e2590c;
+  --accent-2: #f2b705;
+  --accent-soft: rgba(226, 89, 12, 0.13);
+  --grad: linear-gradient(135deg, #d94f0a, #f2b705);
+  --radius: 22px;
+  --radius-lg: 28px;
+  --display: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --display-weight: 800;
+  --display-spacing: -0.03em;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  color: var(--ink);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  transition: background .3s;
+}
+
+/* Decoratieve achtergrond — per taal een ander patroon.
+   Alles met gradients, dus geen plaatjes om te laden. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+html[data-lang="fr"] body::before {
+  background:
+    radial-gradient(circle at 12% -5%, rgba(59, 91, 219, .16), transparent 45%),
+    radial-gradient(circle at 92% 8%, rgba(232, 69, 95, .10), transparent 40%),
+    repeating-linear-gradient(135deg, rgba(59, 91, 219, .035) 0 2px, transparent 2px 14px);
+}
+
+html[data-lang="es"] body::before {
+  background:
+    radial-gradient(circle at 88% -8%, rgba(242, 183, 5, .30), transparent 48%),
+    radial-gradient(circle at 5% 12%, rgba(226, 89, 12, .14), transparent 42%),
+    repeating-radial-gradient(circle at 50% 0, rgba(226, 89, 12, .05) 0 12px, transparent 12px 26px);
+}
+
+/* ---------- topbalk ---------- */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.langswitch { display: flex; gap: 6px; }
+
+.langswitch button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform .12s, background .2s;
+}
+
+.langswitch button .flag { font-size: 15px; filter: saturate(1.1); }
+.langswitch button:active { transform: scale(.96); }
+
+.langswitch button.on {
+  color: var(--white);
+  background: var(--grad);
+  border-color: transparent;
+  box-shadow: 0 3px 10px var(--accent-soft);
+}
+
+.streak {
+  font-size: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.streak b { color: var(--ink); font-size: 16px; }
+
+/* ---------- layout ---------- */
+#app {
+  flex: 1;
+  padding: 20px 16px 28px;
+  max-width: 620px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+#tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding-bottom: env(safe-area-inset-bottom);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+#tabs button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 9px 4px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+#tabs button .ico {
+  font-size: 20px;
+  line-height: 1;
+  filter: grayscale(1) opacity(.55);
+  transition: filter .2s, transform .2s;
+}
+
+#tabs button.on { color: var(--accent); font-weight: 700; }
+#tabs button.on .ico { filter: none; transform: translateY(-1px) scale(1.12); }
+
+/* ---------- typografie ---------- */
+h1 {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  font-size: 26px;
+  margin: 0 0 4px;
+  letter-spacing: var(--display-spacing);
+  line-height: 1.2;
+}
+
+h2 {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  font-size: 19px;
+  margin: 30px 0 12px;
+  letter-spacing: var(--display-spacing);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h3 { font-size: 15px; margin: 0 0 6px; font-weight: 700; }
+p { margin: 0 0 12px; }
+.sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+/* ---------- hero ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 20px 18px;
+  margin-bottom: 18px;
+  color: var(--white);
+  background: var(--grad);
+  box-shadow: var(--shadow);
+}
+
+.hero h1 { color: var(--white); margin-bottom: 2px; }
+.hero .sub { color: rgba(255, 255, 255, .88); margin: 0; }
+
+/* Frans krijgt een tricolore langs de zijkant, Spaans een zonnestraal. */
+.hero::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+html[data-lang="fr"] .hero::after {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: linear-gradient(180deg, #ffffff 0 50%, #e8455f 50% 100%);
+}
+
+html[data-lang="es"] .hero::after {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #c92a2a 0 22%, #f2b705 22% 78%, #c92a2a 78%);
+}
+
+.hero .doodle {
+  position: absolute;
+  right: -6px;
+  bottom: -14px;
+  font-size: 82px;
+  line-height: 1;
+  opacity: .28;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+/* ---------- kaarten ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.card.flat { box-shadow: none; background: var(--tint); }
+
+/* ---------- knoppen ---------- */
+button.btn {
+  font: inherit;
+  font-weight: 700;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 14px 16px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: var(--shadow);
+  transition: transform .12s;
+}
+
+button.btn.primary {
+  background: var(--grad);
+  border-color: transparent;
+  color: var(--white);
+  box-shadow: 0 4px 14px var(--accent-soft);
+}
+
+button.btn.ghost { background: transparent; box-shadow: none; }
+button.btn:active { transform: scale(.98); }
+button.btn[disabled] { opacity: .5; }
+
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+
+/* ---------- vandaag ---------- */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.stat .ico { font-size: 18px; line-height: 1; }
+.stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.2; color: var(--accent); }
+.stat span { font-size: 11px; color: var(--muted); }
+
+/* ---------- sessie ---------- */
+.progress {
+  height: 8px;
+  background: var(--tint);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+}
+.progress i {
+  display: block;
+  height: 100%;
+  background: var(--grad);
+  transition: width .3s;
+}
+
+.prompt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.themechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 10px;
+}
+
+.target {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  font-size: 32px;
+  letter-spacing: var(--display-spacing);
+  line-height: 1.22;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.translation { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+
+.sentence { font-size: 18px; line-height: 1.6; margin: 14px 0 6px; }
+.sentence mark {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+.sentence .blank {
+  display: inline-block;
+  min-width: 64px;
+  border-bottom: 3px dotted var(--accent);
+  margin: 0 4px;
+}
+.sentence-nl { color: var(--muted); font-size: 15px; }
+
+.note {
+  border-left: 4px solid var(--near);
+  padding: 10px 12px;
+  background: rgba(240, 140, 0, .09);
+  border-radius: 0 10px 10px 0;
+  font-size: 14px;
+  margin: 14px 0 0;
+}
+.note::before { content: "💡 "; }
+
+.speak {
+  border: 1.5px solid var(--line);
+  background: var(--tint);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  width: auto;
+}
+.speak:active { transform: scale(.96); }
+
+.speak-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+input[type=text], textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 18px;
+  background: var(--tint);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  padding: 14px;
+}
+
+input[type=text]:focus, textarea:focus {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+
+textarea { font-size: 16px; line-height: 1.6; min-height: 150px; resize: vertical; }
+
+.accents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.accents button {
+  font: inherit;
+  font-size: 17px;
+  min-width: 40px;
+  padding: 7px 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.accents button:active { background: var(--accent-soft); }
+
+.verdict {
+  border-radius: 14px;
+  padding: 14px;
+  margin: 14px 0;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+}
+.verdict::before { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+.verdict.goed { background: rgba(47, 158, 68, .12); color: #1f7a32; }
+.verdict.goed::before { content: "🎉"; }
+.verdict.bijna { background: rgba(240, 140, 0, .13); color: #b36a00; }
+.verdict.bijna::before { content: "🤏"; }
+.verdict.fout { background: rgba(224, 49, 49, .11); color: #c92a2a; }
+.verdict.fout::before { content: "🙃"; }
+.verdict .answer { display: block; font-weight: 600; color: var(--ink); margin-top: 6px; font-size: 17px; }
+
+.grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px; }
+.grades button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 2px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.grades button small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.grades button[data-grade="1"] { color: var(--bad); }
+.grades button[data-grade="2"] { color: var(--near); }
+.grades button[data-grade="3"] { color: var(--good); }
+.grades button[data-grade="4"] { color: var(--accent); }
+.grades button.suggest { border-color: currentColor; border-width: 2px; }
+
+/* ---------- plan ---------- */
+.phase {
+  border-left: 4px solid var(--accent);
+  padding: 2px 0 2px 14px;
+  margin-bottom: 22px;
+}
+.phase .tag {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.phase h3 { margin: 3px 0 6px; font-size: 17px; font-family: var(--display); letter-spacing: var(--display-spacing); }
+.phase p { font-size: 14px; margin-bottom: 6px; }
+
+.timeline { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; align-items: baseline; margin: 0; }
+.timeline dt { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; }
+.timeline dd { margin: 0 0 12px; font-size: 14px; }
+.timeline dd b { display: block; }
+
+ul.clean { margin: 0; padding-left: 20px; }
+ul.clean li { margin-bottom: 10px; font-size: 14px; }
+
+/* ---------- voortgang ---------- */
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 90px; margin: 8px 0 4px; }
+.bars div {
+  flex: 1;
+  background: var(--grad);
+  border-radius: 4px 4px 0 0;
+  min-height: 3px;
+}
+.bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+.meter { height: 10px; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+.meter i { display: block; height: 100%; background: var(--grad); }
+
+.entry { border-top: 1px solid var(--line); padding: 12px 0; }
+.entry:first-of-type { border-top: 0; }
+.entry .when { font-size: 12px; color: var(--muted); font-weight: 600; }
+.entry .what { font-size: 13px; color: var(--muted); font-style: italic; margin: 2px 0 6px; }
+.entry .text { white-space: pre-wrap; font-size: 15px; }
+
+.done { text-align: center; padding: 24px 0 10px; }
+.done .big { font-size: 64px; line-height: 1; margin-bottom: 10px; }
+.done h1 { font-size: 30px; }
+
+/* ---------- vervoegingen ---------- */
+.conjwrap {
+  margin-top: 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--tint);
+}
+.conjwrap summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.conjwrap summary::-webkit-details-marker { display: none; }
+
+.conj { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+.conj th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--accent);
+  padding: 0 4px 6px;
+}
+.conj td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+.conj td:first-child { font-weight: 600; }
+.conj td:not(:first-child) { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
