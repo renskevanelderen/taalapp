@@ -62,10 +62,20 @@ export function buildSession(code, items, newPerDay) {
 
   const alreadyNew = day(code).newCards;
   const budget = Math.max(0, newPerDay - alreadyNew);
-  const fresh = [];
+
+  // Woorden die je zelf uit de woordenlijst hebt geplukt (item.picked) staan
+  // achteraan in het deck, maar je hebt er bewust op getikt. Die verdienen
+  // een plek náást de vaste leerlijn, niet erachter: we wisselen ze af.
+  const picked = [];
+  const rest = [];
   for (const item of items) {
-    if (fresh.length >= budget) break;
-    if (!card(code, item.id)) fresh.push({ item, card: null });
+    if (card(code, item.id)) continue;
+    (item.picked ? picked : rest).push({ item, card: null });
+  }
+  const fresh = [];
+  for (let i = 0; fresh.length < budget && (i < picked.length || i < rest.length); i++) {
+    if (i < picked.length && fresh.length < budget) fresh.push(picked[i]);
+    if (i < rest.length && fresh.length < budget) fresh.push(rest[i]);
   }
 
   return interleave(due, fresh);

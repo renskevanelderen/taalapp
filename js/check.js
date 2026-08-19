@@ -71,6 +71,8 @@ export function distance(a, b) {
 
 // Zin uit de deck: "Le train part de la {voie} 12."
 export function parseSentence(s) {
+  // Woorden uit de frequentielijst hebben geen voorbeeldzin.
+  if (!s) return { before: "", span: "", after: "", plain: "", empty: true };
   const m = s.match(/\{([^}]*)\}/);
   if (!m) return { before: s, span: "", after: "", plain: s };
   return {

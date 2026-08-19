@@ -7,6 +7,8 @@ import * as FR from "../data/fr.js";
 import * as ES from "../data/es.js";
 import * as FRX from "../data/fr-extra.js";
 import * as ESX from "../data/es-extra.js";
+import * as FREQ_FR from "../data/freq-fr.js";
+import * as FREQ_ES from "../data/freq-es.js";
 
 // Decks bestaan uit meerdere bestanden, zodat er content bij kan zonder
 // dat de bestaande bestanden onhandelbaar groot worden.
@@ -19,6 +21,36 @@ function buildDeck(base, ...packs) {
 }
 
 const DECKS = { fr: buildDeck(FR, FRX), es: buildDeck(ES, ESX) };
+
+// De frequentielijst staat naast het deck, niet erin. Pas als je een woord
+// aantikt wordt er een kaart van gemaakt.
+const FREQ = { fr: FREQ_FR.words, es: FREQ_ES.words };
+const SOORT = {
+  w: ["🏃", "werkwoord"],
+  z: ["🎒", "zelfstandig nw"],
+  b: ["🎨", "bijvoeglijk nw"],
+  f: ["🔗", "functiewoord"],
+};
+
+function freqId(index) {
+  return `${code}-f${String(index).padStart(4, "0")}`;
+}
+
+// Een woord uit de lijst gedraagt zich verder als elke andere kaart, alleen
+// zonder voorbeeldzin. De oefening past zich daarop aan.
+function freqItem(index) {
+  const [target, nl, soort] = FREQ[code][index];
+  return {
+    id: freqId(index),
+    target,
+    nl,
+    s: null,
+    sNl: "",
+    theme: "woordenlijst",
+    soort,
+    picked: true,
+  };
+}
 const ACCENTS = {
   fr: ["à", "â", "ç", "é", "è", "ê", "ë", "î", "ï", "ô", "û", "ù", "œ"],
   es: ["á", "é", "í", "ó", "ú", "ü", "ñ", "¿", "¡"],
@@ -55,6 +87,7 @@ const THEME = {
   natuur: ["🌳", "Natuur"],
   werk: ["💼", "Werk"],
   uitdrukkingen: ["🗣️", "Uitdrukkingen"],
+  woordenlijst: ["📚", "Uit de woordenlijst"],
 };
 
 // Hoort er bij dit woord een vervoegingstabel? Dan tonen we die zodra
@@ -104,8 +137,18 @@ function esc(s) {
   );
 }
 
+// Het deck = de samengestelde inhoud plus de woorden die jij zelf uit de
+// frequentielijst hebt geplukt. Elke keer opnieuw opgebouwd, zodat een
+// toevoeging meteen meetelt in de sessie van vandaag.
 function deck() {
-  return DECKS[code];
+  const base = DECKS[code];
+  const added = store.lang(code).added;
+  if (!added.length) return base;
+  return {
+    meta: base.meta,
+    verbs: base.verbs,
+    items: base.items.concat(added.filter((i) => FREQ[code][i]).map(freqItem)),
+  };
 }
 
 // De hele styling hangt aan data-lang op <html>: kleuren, lettertype,
@@ -158,6 +201,7 @@ function render() {
   speech.stop();
   window.scrollTo(0, 0);
   if (view === "today") return session ? renderCard() : renderToday();
+  if (view === "words") return renderWords();
   if (view === "write") return renderWrite();
   if (view === "plan") return renderPlan();
   if (view === "stats") return renderStats();
@@ -205,6 +249,12 @@ function renderToday() {
     }
 
     <div class="card flat" style="margin-top:20px">
+      <h3>🔊 Geluid</h3>
+      <p class="small muted" style="margin:0 0 10px">Hoor je niets tijdens het oefenen? Tik hier: je hoort een voorbeeldzin in het ${code === "fr" ? "Frans" : "Spaans"}.</p>
+      <button class="btn ghost speak" data-probe="1" data-say="${esc(code === "fr" ? "Bonjour, comment ça va ?" : "Hola, ¿qué tal?")}">Test het geluid</button>
+    </div>
+
+    <div class="card flat" style="margin-top:20px">
       <h3>${LOOK[other].flag} ${DECKS[other].meta.name}</h3>
       <p class="small muted" style="margin:0">${
         otherDone
@@ -213,6 +263,8 @@ function renderToday() {
       }</p>
     </div>
   `;
+
+  wireSpeak(deck().meta.locale);
 
   const start = document.getElementById("start");
   if (start) {
@@ -239,18 +291,29 @@ function renderCard() {
   const { item } = current();
   const card = srs.ensureCard(code, item.id);
   const isNew = card.state === "new" && card.reps === 0;
-  const type = srs.exerciseFor(card);
   const parsed = parseSentence(item.s);
+  // Zonder voorbeeldzin bestaat er geen cloze- of luisteroefening; die kaarten
+  // blijven bij herkennen en produceren.
+  let type = srs.exerciseFor(card);
+  if (parsed.empty && (type === "cloze" || type === "listen")) type = "produce";
   const locale = deck().meta.locale;
   session.t = Date.now();
 
   const bar = `<div class="progress"><i style="width:${(session.done / session.size) * 100}%"></i></div>`;
 
-  const sentenceFull = `
+  const sentenceFull = parsed.empty
+    ? ""
+    : `
     <p class="sentence">${parsed.before}<mark>${parsed.span}</mark>${parsed.after}</p>
     <p class="sentence-nl">${esc(item.sNl)}</p>`;
 
-  const speakRow = `
+  const speakRow = parsed.empty
+    ? `
+    <div class="speak-row">
+      <button class="speak" data-say="${esc(item.target)}">Woord</button>
+      <button class="speak" data-say="${esc(item.target)}" data-slow="1">Langzaam</button>
+    </div>`
+    : `
     <div class="speak-row">
       <button class="speak" data-say="${esc(item.target)}">Woord</button>
       <button class="speak" data-say="${esc(parsed.plain)}">Zin</button>
@@ -272,12 +335,12 @@ function renderCard() {
         ${speakRow}
         ${note}
       </div>
-      <p class="small muted">Zeg de zin één keer hardop voor je verdergaat.</p>
+      <p class="small muted">${parsed.empty ? "Zeg het woord één keer hardop voor je verdergaat." : "Zeg de zin één keer hardop voor je verdergaat."}</p>
       <div class="row">
         <button class="btn ghost" data-grade="4">Dit kende ik al</button>
         <button class="btn primary" data-grade="3">Verder</button>
       </div>`;
-    speech.speak(parsed.plain, locale);
+    speech.speak(parsed.empty ? item.target : parsed.plain, locale);
     wireSpeak(locale);
     wireGrades(isNew, true);
     return;
@@ -305,7 +368,7 @@ function renderCard() {
       document.getElementById("reveal").hidden = false;
       document.getElementById("show").remove();
       document.getElementById("grades").hidden = false;
-      speech.speak(parsed.plain, locale);
+      if (!parsed.empty) speech.speak(parsed.plain, locale);
     });
     wireGrades(isNew, false);
     return;
@@ -322,7 +385,7 @@ function renderCard() {
 
   const question =
     type === "produce"
-      ? `<p class="target">${esc(item.nl)}</p><p class="sentence-nl">${esc(item.sNl)}</p>`
+      ? `<p class="target">${esc(item.nl)}</p>${item.sNl ? `<p class="sentence-nl">${esc(item.sNl)}</p>` : ""}`
       : type === "listen"
         ? `<p class="muted small">Typ het gemarkeerde deel van de zin.</p>
            <div class="speak-row"><button class="speak" data-say="${esc(parsed.plain)}">Opnieuw afspelen</button>
@@ -414,12 +477,33 @@ function preview(card, g) {
   return `${(d / 365).toFixed(1)} jr`;
 }
 
+let toastTimer = 0;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  if (!el || !msg) return;
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.hidden = true;
+  }, 6000);
+}
+
 function wireSpeak(locale) {
   for (const b of app.querySelectorAll(".speak")) {
     b.addEventListener("click", (e) => {
       e.preventDefault();
       speech.unlock();
       speech.speak(b.dataset.say, locale, b.dataset.slow ? 0.55 : 0.9);
+      // Stilte is lastig te debuggen: als de spraakmotor niets doet, zeg dat.
+      setTimeout(() => {
+        const s = speech.status(locale);
+        if (s) return toast(s);
+        if (b.dataset.probe)
+          toast(
+            "De app heeft de zin naar de stem gestuurd. Hoor je niets? Zet op je iPhone het belletje uit (het schuifje links naast de volumeknoppen) en draai het volume omhoog terwijl de zin speelt — media-volume staat los van je belvolume."
+          );
+      }, 500);
     });
   }
 }
@@ -488,6 +572,119 @@ function finishSession() {
     store.setActiveLang(code);
     view = "today";
     render();
+  });
+}
+
+// ---------------------------------------------------------------- woorden
+
+// De woordenlijst is bewust géén oefening. Het is een naslagwerk waarin je
+// bladert, zoekt en zelf kiest wat je wilt inslijpen. Alles tegelijk in je
+// deck gooien werkt niet: vijf nieuwe woorden per dag is de rem, niet de
+// grootte van de lijst.
+let wordFilter = "alles";
+let wordQuery = "";
+
+function renderWords() {
+  const list = FREQ[code];
+  const added = store.lang(code).added;
+  const q = wordQuery.trim().toLowerCase();
+
+  const rows = list
+    .map((w, i) => ({ w, i }))
+    .filter(({ w }) => wordFilter === "alles" || w[2] === wordFilter)
+    .filter(({ w }) => !q || w[0].toLowerCase().includes(q) || w[1].toLowerCase().includes(q));
+
+  const filters = [
+    ["alles", "Alles", "📖"],
+    ["w", "Werkwoorden", "🏃"],
+    ["z", "Zelfstandig", "🎒"],
+    ["b", "Bijvoeglijk", "🎨"],
+    ["f", "Functiewoorden", "🔗"],
+  ];
+
+  app.innerHTML = `
+    <div class="hero">
+      <span class="doodle">📚</span>
+      <h1>${LOOK[code].flag} Woordenlijst</h1>
+      <p class="sub">${list.length} woorden, ongeveer op volgorde van hoe vaak je ze tegenkomt. ${added.length} staan er in je deck.</p>
+    </div>
+
+    <input type="search" id="wordsearch" placeholder="Zoek in het ${deck().meta.name} of Nederlands"
+           value="${esc(wordQuery)}" autocomplete="off" autocapitalize="none" spellcheck="false">
+
+    <div class="chips" id="wordfilters">
+      ${filters
+        .map(
+          ([k, label, ico]) =>
+            `<button data-f="${k}" class="${k === wordFilter ? "on" : ""}">${ico} ${label}</button>`,
+        )
+        .join("")}
+    </div>
+
+    <p class="small muted">Tik <b>+</b> om een woord aan je deck toe te voegen — het komt dan gewoon in de wachtrij van Vandaag. Tik 🔊 om het te horen.</p>
+
+    ${
+      rows.length
+        ? `<ol class="wordlist">
+            ${rows
+              .map(({ w, i }) => {
+                const [ico] = SOORT[w[2]] || ["📎"];
+                const on = added.includes(i);
+                return `<li>
+                  <span class="rank">${i + 1}</span>
+                  <span class="wl-main">
+                    <b>${esc(w[0])}</b>
+                    <span class="muted">${esc(w[1])}</span>
+                  </span>
+                  <button class="wl-say" data-say="${esc(w[0])}" title="Uitspreken">🔊</button>
+                  <button class="wl-add ${on ? "on" : ""}" data-add="${i}" title="${on ? "Uit je deck halen" : "Aan je deck toevoegen"}">${on ? "✓" : "+"}</button>
+                  <span class="wl-kind">${ico}</span>
+                </li>`;
+              })
+              .join("")}
+          </ol>`
+        : `<div class="card"><h3>🤷 Niets gevonden</h3><p class="small muted">Geen woord in deze lijst dat op “${esc(wordQuery)}” lijkt. De lijst groeit nog — dit is de eerste batch.</p></div>`
+    }`;
+
+  const search = document.getElementById("wordsearch");
+  search.addEventListener("input", () => {
+    wordQuery = search.value;
+    const at = search.selectionStart;
+    renderWords();
+    const s2 = document.getElementById("wordsearch");
+    s2.focus();
+    s2.setSelectionRange(at, at);
+  });
+
+  document.getElementById("wordfilters").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    wordFilter = b.dataset.f;
+    renderWords();
+  });
+
+  // Aan de lijst zelf hangen, niet aan #app: die blijft bestaan tussen
+  // renders en zou anders bij elke toetsaanslag een luisteraar erbij krijgen.
+  const listEl = app.querySelector(".wordlist");
+  if (!listEl) return;
+  listEl.addEventListener("click", (e) => {
+    const say = e.target.closest(".wl-say");
+    if (say) {
+      speech.unlock();
+      speech.speak(say.dataset.say, deck().meta.locale);
+      return;
+    }
+    const add = e.target.closest(".wl-add");
+    if (!add) return;
+    const i = Number(add.dataset.add);
+    const now = store.toggleAdded(code, i);
+    add.classList.toggle("on", now);
+    add.textContent = now ? "✓" : "+";
+    toast(
+      now
+        ? `“${FREQ[code][i][0]}” staat nu in je deck. Je krijgt het vanzelf voorbij bij Vandaag.`
+        : `“${FREQ[code][i][0]}” is uit je deck gehaald.`,
+    );
   });
 }
 

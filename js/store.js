@@ -11,7 +11,10 @@ const DEFAULTS = () => ({
 });
 
 function newLangState() {
-  return { cards: {}, days: {}, writing: [] };
+  // added = de posities uit de frequentielijst die je zelf aan je deck hebt
+  // toegevoegd. We bewaren alleen de index, niet het woord: dan blijft de
+  // opslag klein en groeit de lijst gewoon mee met nieuwe batches.
+  return { cards: {}, days: {}, writing: [], added: [] };
 }
 
 export function todayKey(d = new Date()) {
@@ -31,6 +34,7 @@ function load() {
       parsed.langs[code].writing ||= [];
       parsed.langs[code].days ||= {};
       parsed.langs[code].cards ||= {};
+      parsed.langs[code].added ||= [];
     }
     parsed.settings ||= { newPerDay: 5, activeLang: "fr" };
     return parsed;
@@ -113,6 +117,22 @@ export function setActiveLang(code) {
 export function setNewPerDay(n) {
   state.settings.newPerDay = Math.max(0, Math.min(30, n));
   save();
+}
+
+export function isAdded(code, index) {
+  return state.langs[code].added.includes(index);
+}
+
+// Aan/uit: nog een keer tikken haalt het woord er weer uit. De kaart zelf
+// blijft dan wel bestaan, zodat je voortgang niet verdwijnt als je per
+// ongeluk tikt.
+export function toggleAdded(code, index) {
+  const list = state.langs[code].added;
+  const at = list.indexOf(index);
+  if (at === -1) list.push(index);
+  else list.splice(at, 1);
+  save();
+  return at === -1;
 }
 
 export function addWriting(code, entry) {

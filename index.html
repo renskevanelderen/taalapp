@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Taal">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 <header id="topbar">
@@ -20,9 +20,12 @@
 
 <main id="app"></main>
 
+<div id="toast" hidden></div>
+
 <nav id="tabs">
   <button data-view="today"><span class="ico">🎯</span><span>Vandaag</span></button>
   <button data-view="write"><span class="ico">✍️</span><span>Schrijven</span></button>
+  <button data-view="words"><span class="ico">📚</span><span>Woorden</span></button>
   <button data-view="plan"><span class="ico">🗺️</span><span>Plan</span></button>
   <button data-view="stats"><span class="ico">📈</span><span>Voortgang</span></button>
 </nav>
