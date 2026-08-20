@@ -4,6 +4,8 @@ import * as speech from "./speech.js";
 import { check, parseSentence } from "./check.js";
 import { plan, promptForDay } from "./plan.js";
 import { review, buildVocab } from "./review.js";
+import { bouwWoordToets, bouwVervoegToets, telUitslag } from "./quiz.js";
+import { PERSONEN, TIJDEN, rijtje } from "./conjug.js";
 import * as FR from "../data/fr.js";
 import * as ES from "../data/es.js";
 import * as FRX from "../data/fr-extra.js";
@@ -178,7 +180,22 @@ function renderChrome() {
   for (const b of document.querySelectorAll("#tabs button")) {
     b.classList.toggle("on", b.dataset.view === view);
   }
+
+  meetTopbar();
 }
+
+// De bovenbalk plakt bovenaan, en de accentbalk van de toets wil daar precies
+// onder blijven hangen. Hoe hoog die balk is weet alleen de telefoon: op een
+// iPhone met een notch komt de safe-area er nog bovenop. Dus meten we hem.
+function meetTopbar() {
+  const bar = document.getElementById("topbar");
+  if (!bar) return;
+  const h = Math.round(bar.getBoundingClientRect().height);
+  if (h) document.documentElement.style.setProperty("--topbar-h", h + "px");
+}
+
+window.addEventListener("resize", meetTopbar);
+window.addEventListener("orientationchange", meetTopbar);
 
 document.getElementById("langswitch").addEventListener("click", (e) => {
   const b = e.target.closest("button");
@@ -186,6 +203,10 @@ document.getElementById("langswitch").addEventListener("click", (e) => {
   code = b.dataset.lang;
   store.setActiveLang(code);
   session = null;
+  // Een toets hoort bij één taal. Blijft hij staan na het omschakelen, dan kijk
+  // je naar een Spaans rijtje terwijl de Franse deck actief is — en dan zou
+  // "verwerk in mijn planning" de uitslag in de verkeerde taal wegschrijven.
+  toets = null;
   render();
 });
 
@@ -203,6 +224,7 @@ function render() {
   window.scrollTo(0, 0);
   if (view === "today") return session ? renderCard() : renderToday();
   if (view === "words") return renderWords();
+  if (view === "toets") return renderToets();
   if (view === "write") return renderWrite();
   if (view === "plan") return renderPlan();
   if (view === "stats") return renderStats();
@@ -740,6 +762,251 @@ function renderWords() {
         ? `“${FREQ[code][i][0]}” staat nu in je deck. Je krijgt het vanzelf voorbij bij Vandaag.`
         : `“${FREQ[code][i][0]}” is uit je deck gehaald.`,
     );
+  });
+}
+
+// ---------------------------------------------------------------- toets
+
+// Eén toets tegelijk. null = het keuzescherm.
+let toets = null;
+
+function renderToets() {
+  if (!toets) return renderToetsKeuze();
+  if (toets.uitslag) return renderToetsUitslag();
+  return renderToetsVragen();
+}
+
+function renderToetsKeuze() {
+  const items = deck().items;
+  const gekend = items.filter((it) => store.card(code, it.id)).length;
+  const verbs = deck().verbs;
+
+  app.innerHTML = `
+    <div class="hero">
+      <span class="doodle">📝</span>
+      <h1>Toets</h1>
+      <p class="sub">Alles invullen, daarna pas nakijken. Juist dat uitstel dwingt je het antwoord echt op te halen in plaats van te herkennen.</p>
+    </div>
+
+    <div class="card">
+      <h3>🗂️ Woorden</h3>
+      ${
+        gekend < 4
+          ? `<p class="small muted" style="margin:6px 0 0">Je hebt ${gekend} ${gekend === 1 ? "woord" : "woorden"} geoefend. Vanaf een stuk of vier wordt een toets zinvol — doe eerst een ronde bij Vandaag.</p>`
+          : `<p class="small muted" style="margin:6px 0 12px">Uit de ${gekend} woorden die je eerder hebt gezien. Je krijgt de zin met een gat erin, of het woord kaal als er geen zin bij hoort.</p>
+             <div class="chips" id="lengte">
+               ${[10, 20, 30].filter((n) => n <= Math.max(10, gekend)).map((n) => `<button data-n="${n}">${Math.min(n, gekend)} vragen</button>`).join("")}
+             </div>`
+      }
+    </div>
+
+    <div class="card">
+      <h3>🔀 Vervoegingen</h3>
+      <p class="small muted" style="margin:6px 0 12px">Kies een werkwoord en een tijd, en schrijf het hele rijtje op. ${
+        code === "fr"
+          ? "Het voornaamwoord mag je weglaten: <i>étais</i> rekent net zo goed als <i>tu étais</i>."
+          : "Het voornaamwoord laat je zoals gebruikelijk weg: <i>era</i>, niet <i>yo era</i>."
+      }</p>
+      <label class="lbl" for="vkeuze">Werkwoord</label>
+      <select id="vkeuze">
+        <option value="__random">🎲 Verras me</option>
+        ${verbs.map((v, i) => `<option value="${i}">${esc(v.inf)} — ${esc(v.nl)}</option>`).join("")}
+      </select>
+      <label class="lbl" for="tkeuze" style="margin-top:10px">Tijd</label>
+      <select id="tkeuze">
+        <option value="__random">🎲 Verras me</option>
+        ${TIJDEN[code].map((t) => `<option value="${t.id}">${esc(t.naam)} (${esc(t.bij)})</option>`).join("")}
+      </select>
+      <button class="btn primary" id="startv" style="margin-top:14px">Begin het rijtje</button>
+    </div>`;
+
+  const lengte = document.getElementById("lengte");
+  if (lengte) {
+    lengte.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const vragen = bouwWoordToets(items, (id) => !!store.card(code, id), Number(b.dataset.n));
+      if (!vragen.length) return toast("Er zijn nog geen geoefende woorden om te toetsen.");
+      toets = { modus: "woorden", vragen, antwoorden: vragen.map(() => ""), uitslag: null };
+      render();
+    });
+  }
+
+  document.getElementById("startv").addEventListener("click", () => {
+    const vs = deck().verbs;
+    const vkeuze = document.getElementById("vkeuze").value;
+    const tkeuze = document.getElementById("tkeuze").value;
+    const verb = vs[vkeuze === "__random" ? Math.floor(Math.random() * vs.length) : Number(vkeuze)];
+    const tijden = TIJDEN[code];
+    const tijd =
+      tkeuze === "__random" ? tijden[Math.floor(Math.random() * tijden.length)].id : tkeuze;
+    const vormen = rijtje(verb, code, tijd);
+    if (!vormen) return toast("Voor dit werkwoord ken ik die tijd nog niet.");
+    const vragen = bouwVervoegToets(verb, code, tijd, vormen);
+    toets = { modus: "vervoeging", verb, tijd, vragen, antwoorden: vragen.map(() => ""), uitslag: null };
+    render();
+  });
+}
+
+function renderToetsVragen() {
+  const { vragen, modus } = toets;
+  const naam = deck().meta.name;
+
+  const kop =
+    modus === "vervoeging"
+      ? (() => {
+          const t = TIJDEN[code].find((x) => x.id === toets.tijd);
+          return `<div class="hero">
+            <span class="doodle">🔀</span>
+            <h1>${esc(toets.verb.inf)}</h1>
+            <p class="sub">${esc(t.naam)} — <i>${esc(t.bij)}</i>. ${esc(toets.verb.nl)}.</p>
+          </div>`;
+        })()
+      : `<div class="hero">
+           <span class="doodle">🗂️</span>
+           <h1>Woordentoets</h1>
+           <p class="sub">${vragen.length} vragen. Vul alles in wat je weet en laat de rest leeg.</p>
+         </div>`;
+
+  const velden = vragen
+    .map((v, i) => {
+      const label =
+        v.soort === "vervoeging"
+          ? `<span class="q-nr">${esc(PERSONEN[v.persoon])}</span>`
+          : `<span class="q-nr">${i + 1}</span>`;
+      const vraagtekst =
+        v.soort === "zin"
+          ? `<p class="q-zin">${esc(v.context.voor)}<span class="blank"></span>${esc(v.context.na)}</p>
+             ${v.context.nl ? `<p class="q-nl">${esc(v.context.nl)}</p>` : ""}
+             <p class="q-cue">${esc(v.vraag)}</p>`
+          : v.soort === "woord"
+            ? `<p class="q-cue">${esc(v.vraag)}</p>`
+            : "";
+      return `<div class="qcard">
+        <div class="q-top">${label}${vraagtekst}</div>
+        <input type="text" class="q-in" data-i="${i}" lang="${deck().meta.locale}"
+               autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+               placeholder="in het ${esc(naam)}" value="${esc(toets.antwoorden[i])}">
+      </div>`;
+    })
+    .join("");
+
+  app.innerHTML = `
+    ${kop}
+    <div class="accents sticky">${ACCENTS[code].map((a) => `<button data-ch="${a}">${a}</button>`).join("")}</div>
+    ${velden}
+    <button class="btn primary" id="nakijken" style="margin-top:16px">Nakijken</button>
+    <button class="btn ghost" id="stoppen" style="margin-top:8px">Stoppen zonder nakijken</button>`;
+
+  // De accentknoppen werken op het veld waar je het laatst stond.
+  let laatste = null;
+  for (const inp of app.querySelectorAll(".q-in")) {
+    inp.addEventListener("focus", () => {
+      laatste = inp;
+    });
+    inp.addEventListener("input", () => {
+      toets.antwoorden[Number(inp.dataset.i)] = inp.value;
+    });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const alle = [...app.querySelectorAll(".q-in")];
+      const volgende = alle[alle.indexOf(inp) + 1];
+      if (volgende) volgende.focus();
+      else document.getElementById("nakijken").focus();
+    });
+  }
+
+  app.querySelector(".accents").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    e.preventDefault();
+    const inp = laatste || app.querySelector(".q-in");
+    if (!inp) return;
+    const p = inp.selectionStart ?? inp.value.length;
+    inp.value = inp.value.slice(0, p) + b.dataset.ch + inp.value.slice(inp.selectionEnd ?? p);
+    toets.antwoorden[Number(inp.dataset.i)] = inp.value;
+    inp.focus();
+    inp.setSelectionRange(p + 1, p + 1);
+  });
+
+  document.getElementById("nakijken").addEventListener("click", () => {
+    toets.uitslag = telUitslag(toets.vragen, toets.antwoorden);
+    render();
+  });
+  document.getElementById("stoppen").addEventListener("click", () => {
+    toets = null;
+    render();
+  });
+}
+
+function renderToetsUitslag() {
+  const u = toets.uitslag;
+  const locale = deck().meta.locale;
+
+  const oordeel =
+    u.score >= 90
+      ? ["🏆", "Dit zit erin."]
+      : u.score >= 70
+        ? ["👍", "Ruim voldoende. De missers hieronder zijn je volgende ronde."]
+        : u.score >= 40
+          ? ["🌱", "Er zit een basis. Neem de fouten door en toets over een paar dagen opnieuw."]
+          : ["🧭", "Dit materiaal is nog te vers. Oefen het eerst bij Vandaag; toetsen werkt pas als er iets op te halen valt."];
+
+  const regels = u.per
+    .map(({ vraag, gegeven, oordeel: o }) => {
+      const cue =
+        vraag.soort === "vervoeging" ? PERSONEN[vraag.persoon] : vraag.vraag;
+      return `<li class="uit ${o}">
+        <div class="uit-cue">${esc(cue)}</div>
+        <div class="uit-jij">${gegeven ? esc(gegeven) : "<i>niets ingevuld</i>"}</div>
+        ${o === "goed" ? "" : `<div class="uit-goed">${esc(vraag.antwoord)}</div>`}
+        <button class="speak uit-say" data-say="${esc(vraag.volledig || vraag.antwoord)}" title="Uitspreken">🔊</button>
+      </li>`;
+    })
+    .join("");
+
+  app.innerHTML = `
+    <div class="hero">
+      <span class="doodle">${oordeel[0]}</span>
+      <h1>${u.score}%</h1>
+      <p class="sub">${esc(oordeel[1])}</p>
+    </div>
+
+    <div class="card flat">
+      <p style="margin:0">✅ ${u.goed} goed &nbsp;•&nbsp; 🟡 ${u.bijna} bijna &nbsp;•&nbsp; ❌ ${u.fout} fout</p>
+      ${u.bijna ? `<p class="small muted" style="margin:8px 0 0">“Bijna” is een accent of één letter mis. Die tellen half mee — je kende het woord, je schreef het net niet goed.</p>` : ""}
+    </div>
+
+    <ul class="uitlijst">${regels}</ul>
+
+    ${
+      toets.modus === "woorden"
+        ? `<button class="btn primary" id="verwerk" style="margin-top:16px">Verwerk in mijn planning</button>
+           <p class="small muted" style="margin:8px 0 0">Dan schuiven deze woorden op in je herhaalschema: fout komt snel terug, goed pas later. Sla je dit over, dan blijft je planning zoals hij was.</p>`
+        : ""
+    }
+    <button class="btn ghost" id="opnieuw" style="margin-top:12px">Terug naar de toetsen</button>`;
+
+  wireSpeak(locale);
+
+  const verwerk = document.getElementById("verwerk");
+  if (verwerk) {
+    verwerk.addEventListener("click", () => {
+      for (const { vraag, oordeel: o } of u.per) {
+        const c = srs.ensureCard(code, vraag.id);
+        srs.grade(c, o === "goed" ? 3 : o === "bijna" ? 2 : 1);
+      }
+      srs.save();
+      verwerk.disabled = true;
+      verwerk.textContent = "Verwerkt ✓";
+      toast("Je herhaalschema is bijgewerkt met deze uitslag.");
+    });
+  }
+
+  document.getElementById("opnieuw").addEventListener("click", () => {
+    toets = null;
+    render();
   });
 }
 

@@ -1,4 +1,4 @@
-const CACHE = "taalapp-v5";
+const CACHE = "taalapp-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,6 +10,8 @@ const ASSETS = [
   "./js/speech.js",
   "./js/check.js",
   "./js/review.js",
+  "./js/quiz.js",
+  "./js/conjug.js",
   "./js/plan.js",
   "./data/fr.js",
   "./data/es.js",

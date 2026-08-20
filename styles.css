@@ -181,7 +181,7 @@ html[data-lang="es"] body::before {
 
 #tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(12px);
@@ -197,8 +197,9 @@ html[data-lang="es"] body::before {
   border: 0;
   color: var(--muted);
   font: inherit;
-  font-size: 10.5px;
-  padding: 9px 2px 10px;
+  font-size: 9.5px;
+  padding: 9px 1px 10px;
+  letter-spacing: -.2px;
   min-width: 0;
   cursor: pointer;
   display: flex;
@@ -717,4 +718,111 @@ ul.clean li { margin-bottom: 10px; font-size: 14px; }
   font-size: 13px;
   line-height: 1.45;
   opacity: .75;
+}
+
+/* ---- toets */
+.lbl {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+select {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 20px, calc(100% - 13px) 20px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* De accentbalk blijft meelopen terwijl je door de vragen scrollt. Hij plakt
+   onder de bovenbalk (--topbar-h wordt door app.js gemeten, want de hoogte
+   hangt af van de safe-area van de telefoon) en houdt het bij één regel: twee
+   regels knoppen kosten een derde van het scherm en dat gaat ten koste van de
+   vragen zelf. Wat niet past schuif je opzij. */
+.accents.sticky {
+  position: sticky;
+  top: var(--topbar-h, 56px);
+  z-index: 5;
+  padding: 8px 0;
+  margin-bottom: 4px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.accents.sticky::-webkit-scrollbar { display: none; }
+.accents.sticky button { flex: 0 0 auto; }
+
+.qcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+}
+.q-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.q-nr {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 7px;
+  padding: 2px 8px;
+}
+.q-zin { flex: 1 1 100%; margin: 6px 0 0; font-size: 16px; line-height: 1.5; }
+/* Het gat moet je zien staan. Zonder streepje leest "___ vous parlez anglais ?"
+   als een gewone zin en weet je niet dat er vooraan iets ontbreekt. */
+.q-zin .blank {
+  display: inline-block;
+  min-width: 62px;
+  border-bottom: 3px dotted var(--accent);
+  margin: 0 3px;
+  vertical-align: baseline;
+}
+.q-nl { flex: 1 1 100%; margin: 3px 0 0; font-size: 13px; opacity: .6; }
+.q-cue { flex: 1 1 auto; margin: 0; font-size: 15px; font-weight: 600; }
+.q-in { margin-top: 10px; }
+
+.uitlijst { list-style: none; margin: 14px 0 0; padding: 0; }
+.uit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 7px;
+  background: var(--surface);
+  border-left: 4px solid var(--line);
+}
+.uit.goed { border-left-color: #2ea36a; }
+.uit.bijna { border-left-color: #e0a020; }
+.uit.fout { border-left-color: #d24b4b; }
+.uit-cue { font-size: 12.5px; opacity: .65; }
+.uit-jij { font-size: 16px; font-weight: 600; }
+.uit.fout .uit-jij, .uit.bijna .uit-jij { text-decoration: line-through; opacity: .55; }
+.uit-goed { font-size: 16px; font-weight: 700; color: #1c6b3c; }
+.uit-say {
+  grid-row: 1 / span 3;
+  grid-column: 2;
+  align-self: center;
+  background: none;
+  border: 0;
+  font-size: 19px;
+  cursor: pointer;
+  padding: 4px;
 }
