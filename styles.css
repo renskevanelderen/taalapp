@@ -8,6 +8,46 @@
    daaraan, dus een taalwissel verandert het hele scherm.
    ============================================================ */
 
+/* ---------- de twee letters ----------
+
+   Elke taal een eigen lettertype, want een taal heeft een gezicht.
+
+   Fraunces (Frans) is een schreefletter met opzettelijk scheve details: de
+   assen SOFT en WONK maken de vormen zachter en eigenwijzer naarmate je ze
+   verder opendraait. In koppen zetten we WONK aan, in lopende tekst niet —
+   daar wil je gewoon kunnen lezen.
+
+   Bricolage Grotesque (Spaans) is schreefloos, hedendaags en eigenzinnig,
+   met een breedte-as die we in koppen iets smaller trekken.
+
+   Beide zijn variabele lettertypes: één bestand bevat alle diktes. Dat is
+   waarom twee talen samen 250 kB kosten en niet twee megabyte. Ze staan in
+   de app zelf, dus ze werken ook zonder internet en Google ziet niet
+   wanneer jij je woordjes doet. */
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("fonts/fraunces-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 200 800;
+  font-stretch: 75% 100%;
+  font-display: swap;
+  src: url("fonts/bricolage-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --good: #2f9e44;
   --near: #f08c00;
@@ -28,9 +68,12 @@
   --grad: linear-gradient(135deg, #2f4fd0, #4c8bf5);
   --radius: 16px;
   --radius-lg: 20px;
-  --display: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --display: "Fraunces", Georgia, serif;
   --display-weight: 700;
   --display-spacing: -0.02em;
+  --display-axes: normal;
+  --text: "Fraunces", Georgia, serif;
+  --text-axes: normal;
   --shadow: 0 2px 4px rgba(23, 32, 58, 0.05), 0 8px 24px rgba(23, 32, 58, 0.07);
 }
 
@@ -49,9 +92,13 @@ html[data-lang="fr"] {
   --grad: linear-gradient(135deg, #2f4fd0, #4c8bf5);
   --radius: 14px;
   --radius-lg: 18px;
-  --display: Georgia, "Times New Roman", serif;
+  --display: "Fraunces", Georgia, serif;
   --display-weight: 700;
   --display-spacing: -0.01em;
+  /* Koppen mogen scheef staan: WONK 1 zet de eigenwijze vormen aan. */
+  --display-axes: "SOFT" 40, "WONK" 1;
+  --text: "Fraunces", Georgia, serif;
+  --text-axes: "SOFT" 20, "WONK" 0;
 }
 
 /* ---------- Spaans: el sol ---------- */
@@ -69,9 +116,13 @@ html[data-lang="es"] {
   --grad: linear-gradient(135deg, #d94f0a, #f2b705);
   --radius: 22px;
   --radius-lg: 28px;
-  --display: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
   --display-weight: 800;
   --display-spacing: -0.03em;
+  /* Koppen iets smaller getrokken: dat geeft ze vaart. */
+  --display-axes: "wdth" 88;
+  --text: "Bricolage Grotesque", system-ui, sans-serif;
+  --text-axes: "wdth" 100;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -79,9 +130,14 @@ html[data-lang="es"] {
 html, body {
   margin: 0;
   color: var(--ink);
-  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font: 16px/1.55 var(--text);
+  font-variation-settings: var(--text-axes);
+  font-optical-sizing: auto;
   overscroll-behavior-y: none;
 }
+
+/* Formulierelementen erven het lettertype niet vanzelf. */
+input, textarea, select, button { font-variation-settings: var(--text-axes); }
 
 body {
   display: flex;
@@ -150,7 +206,7 @@ html[data-lang="es"] body::before {
   transition: transform .12s, background .2s;
 }
 
-.langswitch button .flag { font-size: 15px; filter: saturate(1.1); }
+.langswitch button .flag { display: inline-flex; line-height: 0; }
 .langswitch button:active { transform: scale(.96); }
 
 .langswitch button.on {
@@ -216,18 +272,47 @@ html[data-lang="es"] body::before {
 }
 
 #tabs button .ico {
-  font-size: 19px;
-  line-height: 1;
-  filter: grayscale(1) opacity(.55);
-  transition: filter .2s, transform .2s;
+  display: block;
+  line-height: 0;
+  color: var(--muted);
+  opacity: .6;
+  transition: color .2s, opacity .2s, transform .2s;
 }
 
 #tabs button.on { color: var(--accent); font-weight: 700; }
-#tabs button.on .ico { filter: none; transform: translateY(-1px) scale(1.12); }
+#tabs button.on .ico { color: var(--accent); opacity: 1; transform: translateY(-1px) scale(1.1); }
+
+/* ---------- tekeningen ----------
+   Alle doodles komen uit js/art.js en tekenen met stroke="currentColor".
+   Daardoor kleuren ze mee met de taal: in het Franse deel blauw, in het
+   Spaanse deel oranje. Dat kan een emoji nooit. */
+.ic {
+  display: inline-block;
+  vertical-align: -.16em;
+  flex: none;
+  overflow: visible;
+}
+
+/* De vulling ligt onder de lijn, zoals in een prentenboek: een vlek kleur
+   die net niet netjes binnen de lijntjes blijft. */
+.vul { fill: currentColor; fill-opacity: .12; stroke: none; }
+.vul2 { fill: #4a9b4a; fill-opacity: .26; stroke: none; }
+
+.vlag {
+  display: inline-block;
+  vertical-align: -.12em;
+  flex: none;
+  border-radius: 2px;
+}
+
+/* Twee vlaggetjes naast elkaar, licht over elkaar heen. */
+.tweevlag { display: inline-flex; align-items: center; }
+.tweevlag .vlag + .vlag { margin-left: -4px; }
 
 /* ---------- typografie ---------- */
 h1 {
   font-family: var(--display);
+  font-variation-settings: var(--display-axes);
   font-weight: var(--display-weight);
   font-size: 26px;
   margin: 0 0 4px;
@@ -237,6 +322,7 @@ h1 {
 
 h2 {
   font-family: var(--display);
+  font-variation-settings: var(--display-axes);
   font-weight: var(--display-weight);
   font-size: 19px;
   margin: 30px 0 12px;
@@ -294,12 +380,15 @@ html[data-lang="es"] .hero::after {
   position: absolute;
   right: -6px;
   bottom: -14px;
-  font-size: 82px;
-  line-height: 1;
-  opacity: .28;
+  line-height: 0;
+  /* De hero heeft een gekleurde ondergrond met witte letters, dus tekent de
+     doodle ook in wit — een accentkleur op de accentkleur zie je niet. */
+  color: #fff;
+  opacity: .34;
   transform: rotate(-8deg);
   pointer-events: none;
 }
+.hero .doodle .ic { width: 96px; height: 96px; stroke-width: 1.1; }
 
 /* ---------- kaarten ---------- */
 .card {
@@ -354,7 +443,7 @@ button.btn[disabled] { opacity: .5; }
   box-shadow: var(--shadow);
 }
 
-.stat .ico { font-size: 18px; line-height: 1; }
+.stat .ico { display: block; line-height: 0; color: var(--accent); margin-bottom: 2px; }
 .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.2; color: var(--accent); }
 .stat span { font-size: 11px; color: var(--muted); }
 
@@ -403,6 +492,7 @@ button.btn[disabled] { opacity: .5; }
 
 .target {
   font-family: var(--display);
+  font-variation-settings: var(--display-axes);
   font-weight: var(--display-weight);
   font-size: 32px;
   letter-spacing: var(--display-spacing);
@@ -437,7 +527,10 @@ button.btn[disabled] { opacity: .5; }
   font-size: 14px;
   margin: 14px 0 0;
 }
-.note::before { content: "💡 "; }
+/* Het lampje naast een weetje. De tekst zit in een eigen span, anders maakt
+   flexbox van elk <b> een los vakje met een gat ernaast. */
+.note { display: flex; align-items: flex-start; gap: 7px; }
+.note .ic { margin-top: 3px; color: var(--near); }
 
 .speak {
   border: 1.5px solid var(--line);
@@ -450,6 +543,10 @@ button.btn[disabled] { opacity: .5; }
   padding: 8px 14px;
   cursor: pointer;
   width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 .speak:active { transform: scale(.96); }
 
@@ -496,13 +593,13 @@ textarea { font-size: 16px; line-height: 1.6; min-height: 150px; resize: vertica
   display: flex;
   flex-direction: column;
 }
-.verdict::before { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+.verdict .v-teken { line-height: 0; margin-bottom: 4px; }
 .verdict.goed { background: rgba(47, 158, 68, .12); color: #1f7a32; }
-.verdict.goed::before { content: "🎉"; }
+
 .verdict.bijna { background: rgba(240, 140, 0, .13); color: #b36a00; }
-.verdict.bijna::before { content: "🤏"; }
+
 .verdict.fout { background: rgba(224, 49, 49, .11); color: #c92a2a; }
-.verdict.fout::before { content: "🙃"; }
+
 .verdict .answer { display: block; font-weight: 600; color: var(--ink); margin-top: 6px; font-size: 17px; }
 
 .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px; }
@@ -538,7 +635,7 @@ textarea { font-size: 16px; line-height: 1.6; min-height: 150px; resize: vertica
   text-transform: uppercase;
   letter-spacing: .08em;
 }
-.phase h3 { margin: 3px 0 6px; font-size: 17px; font-family: var(--display); letter-spacing: var(--display-spacing); }
+.phase h3 { margin: 3px 0 6px; font-size: 17px; font-family: var(--display); font-variation-settings: var(--display-axes); letter-spacing: var(--display-spacing); }
 .phase p { font-size: 14px; margin-bottom: 6px; }
 
 .timeline { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; align-items: baseline; margin: 0; }
@@ -569,7 +666,8 @@ ul.clean li { margin-bottom: 10px; font-size: 14px; }
 .entry .text { white-space: pre-wrap; font-size: 15px; }
 
 .done { text-align: center; padding: 24px 0 10px; }
-.done .big { font-size: 64px; line-height: 1; margin-bottom: 10px; }
+.done .big { line-height: 0; margin-bottom: 10px; color: var(--accent); }
+.done .big .ic { width: 92px; height: 92px; }
 .done h1 { font-size: 30px; }
 
 /* ---------- vervoegingen ---------- */
@@ -677,14 +775,16 @@ ul.clean li { margin-bottom: 10px; font-size: 14px; }
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--tint);
-  font-size: 15px;
-  line-height: 1;
+  line-height: 0;
   cursor: pointer;
   color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .wl-add { font-weight: 700; }
 .wl-add.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.wl-kind { flex: none; font-size: 13px; opacity: .55; }
+.wl-kind { flex: none; line-height: 0; color: var(--muted); opacity: .8; }
 
 /* ---- nakijken van schrijfoefeningen */
 .rvlist { list-style: none; margin: 0; padding: 0; }
@@ -798,6 +898,20 @@ select {
 .q-cue { flex: 1 1 auto; margin: 0; font-size: 15px; font-weight: 600; }
 .q-in { margin-top: 10px; }
 
+/* De telling goed / bijna / fout, met de drie rondjes uit art.js ernaast. */
+.tally {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 14.5px;
+}
+.tally i { opacity: .3; font-style: normal; margin: 0 3px; }
+.tally .ic:nth-of-type(1) { color: var(--good); }
+.tally .ic:nth-of-type(2) { color: var(--near); }
+.tally .ic:nth-of-type(3) { color: var(--bad); }
+
 .uitlijst { list-style: none; margin: 14px 0 0; padding: 0; }
 .uit {
   display: grid;
@@ -822,7 +936,8 @@ select {
   align-self: center;
   background: none;
   border: 0;
-  font-size: 19px;
+  color: var(--muted);
+  line-height: 0;
   cursor: pointer;
   padding: 4px;
 }

@@ -1,10 +1,13 @@
-const CACHE = "taalapp-v7";
+const CACHE = "taalapp-v9";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.webmanifest",
+  "./fonts/fraunces-latin.woff2",
+  "./fonts/bricolage-latin.woff2",
   "./js/app.js",
+  "./js/art.js",
   "./js/store.js",
   "./js/srs.js",
   "./js/speech.js",

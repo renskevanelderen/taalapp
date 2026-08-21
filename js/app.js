@@ -6,6 +6,7 @@ import { plan, promptForDay } from "./plan.js";
 import { review, buildVocab } from "./review.js";
 import { bouwWoordToets, bouwVervoegToets, telUitslag } from "./quiz.js";
 import { PERSONEN, TIJDEN, rijtje } from "./conjug.js";
+import { icon, thema, scene, vlag, SCENE_NAMEN } from "./art.js";
 import * as FR from "../data/fr.js";
 import * as ES from "../data/es.js";
 import * as FRX from "../data/fr-extra.js";
@@ -29,11 +30,17 @@ const DECKS = { fr: buildDeck(FR, FRX), es: buildDeck(ES, ESX) };
 // aantikt wordt er een kaart van gemaakt.
 const FREQ = { fr: FREQ_FR.words, es: FREQ_ES.words };
 const SOORT = {
-  w: ["🏃", "werkwoord"],
-  z: ["🎒", "zelfstandig nw"],
-  b: ["🎨", "bijvoeglijk nw"],
-  f: ["🔗", "functiewoord"],
+  w: ["werkwoorden", "werkwoord"],
+  z: ["dingen", "zelfstandig nw"],
+  b: ["eigenschappen", "bijvoeglijk nw"],
+  f: ["schakel", "functiewoord"],
 };
+
+// De tekeningen zitten in twee laden: losse iconen en onderwerp-tekeningen.
+// Welke lade het is doet er bij het schrijven van een scherm niet toe.
+function merk(naam, size) {
+  return icon(naam, { size }) || thema(naam, { size });
+}
 
 function freqId(index) {
   return `${code}-f${String(index).padStart(4, "0")}`;
@@ -59,38 +66,39 @@ const ACCENTS = {
   es: ["á", "é", "í", "ó", "ú", "ü", "ñ", "¿", "¡"],
 };
 
-// Elke taal krijgt een eigen gezicht: vlag, tekening en achtergrondkleur
-// voor de statusbalk van iOS.
+// Alleen nog de achtergrondkleur voor de statusbalk van iOS. Het gezicht van
+// de taal — de vlag en de sfeertekeningen — komt uit art.js.
 const LOOK = {
-  fr: { flag: "🇫🇷", doodle: "🥐", doodles: ["🥐", "🗼", "🧀", "🚲", "☕️"], bg: "#f4f7ff" },
-  es: { flag: "🇪🇸", doodle: "🍊", doodles: ["🍊", "☀️", "🥘", "💃", "🫒"], bg: "#fff8ee" },
+  fr: { bg: "#f4f7ff" },
+  es: { bg: "#fff8ee" },
 };
 
-// Emoji per onderwerp — puur om een kaart in één oogopslag te plaatsen.
+// De naam van het onderwerp. De bijbehorende tekening heet net zo, zodat er
+// geen tweede lijstje is dat uit de pas kan gaan lopen.
 const THEME = {
-  bouwstenen: ["🧱", "Bouwstenen"],
-  reizen: ["✈️", "Reizen"],
-  overnachten: ["🛏️", "Overnachten"],
-  eten: ["🍽️", "Eten & drinken"],
-  winkelen: ["🛒", "Winkelen"],
-  oriëntatie: ["🧭", "De weg vragen"],
-  smalltalk: ["💬", "Smalltalk"],
-  mening: ["🤔", "Mening geven"],
-  problemen: ["🆘", "Problemen"],
-  spreektaal: ["😎", "Spreektaal"],
-  getallen: ["🔢", "Getallen"],
-  tijd: ["🕰️", "Tijd"],
-  eigenschappen: ["🎨", "Eigenschappen"],
-  werkwoorden: ["🏃", "Werkwoorden"],
-  dingen: ["🎒", "Dingen"],
-  huis: ["🏠", "Thuis"],
-  stad: ["🏙️", "In de stad"],
-  mensen: ["👨‍👩‍👧", "Mensen"],
-  lichaam: ["🫀", "Lichaam & gezondheid"],
-  natuur: ["🌳", "Natuur"],
-  werk: ["💼", "Werk"],
-  uitdrukkingen: ["🗣️", "Uitdrukkingen"],
-  woordenlijst: ["📚", "Uit de woordenlijst"],
+  bouwstenen: "Bouwstenen",
+  reizen: "Reizen",
+  overnachten: "Overnachten",
+  eten: "Eten & drinken",
+  winkelen: "Winkelen",
+  oriëntatie: "De weg vragen",
+  smalltalk: "Smalltalk",
+  mening: "Mening geven",
+  problemen: "Problemen",
+  spreektaal: "Spreektaal",
+  getallen: "Getallen",
+  tijd: "Tijd",
+  eigenschappen: "Eigenschappen",
+  werkwoorden: "Werkwoorden",
+  dingen: "Dingen",
+  huis: "Thuis",
+  stad: "In de stad",
+  mensen: "Mensen",
+  lichaam: "Lichaam & gezondheid",
+  natuur: "Natuur",
+  werk: "Werk",
+  uitdrukkingen: "Uitdrukkingen",
+  woordenlijst: "Uit de woordenlijst",
 };
 
 // Hoort er bij dit woord een vervoegingstabel? Dan tonen we die zodra
@@ -108,25 +116,25 @@ function conjTable(item) {
     .join("");
   return `
     <details class="conjwrap">
-      <summary>📐 Vervoeging van <b>${esc(v.inf)}</b></summary>
+      <summary>${icon("tabel", { size: 17 })} Vervoeging van <b>${esc(v.inf)}</b></summary>
       <table class="conj">
         <tr><th>nu</th><th>voltooid</th><th>straks</th></tr>
         ${rows}
       </table>
-      ${v.note ? `<p class="note">${esc(v.note)}</p>` : ""}
+      ${v.note ? `<p class="note">${icon("vonk", { size: 15 })}<span>${esc(v.note)}</span></p>` : ""}
     </details>`;
 }
 
 function themeChip(t) {
-  const [ico, label] = THEME[t] || ["📎", t];
-  return `<span class="themechip">${ico} ${esc(label)}</span>`;
+  return `<span class="themechip">${thema(t, { size: 15 })} ${esc(THEME[t] || t)}</span>`;
 }
 
-// Wisselt per dag, zodat het scherm niet elke dag hetzelfde is.
+// Wisselt per dag, zodat het scherm niet elke dag hetzelfde is: de ene ochtend
+// staat er een croissant in de hoek, de andere de Eiffeltoren.
 function doodleOfDay() {
-  const list = LOOK[code].doodles;
+  const list = SCENE_NAMEN[code];
   const n = store.todayKey().split("-").join("") | 0;
-  return list[n % list.length];
+  return scene(list[n % list.length]);
 }
 
 const app = document.getElementById("app");
@@ -164,20 +172,33 @@ function setTheme() {
 
 // ---------------------------------------------------------------- chrome
 
+// De tekening bij elk tabblad. Hij staat hier en niet in index.html, want dan
+// zou dezelfde tekening op twee plaatsen bestaan.
+const TABTEKEN = {
+  today: "doel",
+  write: "pen",
+  words: "boek",
+  toets: "blad",
+  plan: "kaart",
+  stats: "grafiek",
+};
+
 function renderChrome() {
   document.getElementById("langswitch").innerHTML = ["fr", "es"]
     .map(
       (c) =>
-        `<button data-lang="${c}" class="${c === code ? "on" : ""}"><span class="flag">${LOOK[c].flag}</span>${DECKS[c].meta.name}</button>`,
+        `<button data-lang="${c}" class="${c === code ? "on" : ""}"><span class="flag">${vlag(c)}</span>${DECKS[c].meta.name}</button>`,
     )
     .join("");
 
   const n = store.streak();
   document.getElementById("streak").innerHTML = n
-    ? `<span>${n >= 7 ? "🔥" : "✨"}</span><b>${n}</b> ${n === 1 ? "dag" : "dagen"}`
-    : "<span>🌱</span> nog geen reeks";
+    ? `${icon(n >= 7 ? "vlam" : "vonk", { size: 16 })}<b>${n}</b> ${n === 1 ? "dag" : "dagen"}`
+    : `${icon("kiem", { size: 16 })} nog geen reeks`;
 
   for (const b of document.querySelectorAll("#tabs button")) {
+    const ico = b.querySelector(".ico");
+    if (ico && !ico.firstChild) ico.innerHTML = icon(TABTEKEN[b.dataset.view], { size: 21 });
     b.classList.toggle("on", b.dataset.view === view);
   }
 
@@ -245,7 +266,7 @@ function renderToday() {
   app.innerHTML = `
     <div class="hero">
       <span class="doodle">${doodleOfDay()}</span>
-      <h1>${LOOK[code].flag} ${deck().meta.name}</h1>
+      <h1>${vlag(code, 18)} ${deck().meta.name}</h1>
       <p class="sub">${
         total === 0
           ? "Alles gedaan. Je herhalingen staan gepland voor later."
@@ -254,15 +275,15 @@ function renderToday() {
     </div>
 
     <div class="stats-row">
-      <div class="stat"><span class="ico">🔁</span><b>${c.due}</b><span>te herhalen</span></div>
-      <div class="stat"><span class="ico">🌱</span><b>${c.fresh}</b><span>nieuw</span></div>
-      <div class="stat"><span class="ico">✅</span><b>${d.reviews}</b><span>vandaag gedaan</span></div>
+      <div class="stat"><span class="ico">${icon("kringloop", { size: 20 })}</span><b>${c.due}</b><span>te herhalen</span></div>
+      <div class="stat"><span class="ico">${icon("kiem", { size: 20 })}</span><b>${c.fresh}</b><span>nieuw</span></div>
+      <div class="stat"><span class="ico">${icon("vink", { size: 20 })}</span><b>${d.reviews}</b><span>vandaag gedaan</span></div>
     </div>
 
     ${
       total > 0
         ? `<button class="btn primary" id="start">Sessie starten</button>`
-        : `<div class="card"><h3>🎉 Klaar voor vandaag</h3><p class="small muted">Doe de schrijfopdracht als je nog even door wilt, of pak de andere taal op.</p></div>`
+        : `<div class="card"><h3>${icon("vonk", { size: 18 })} Klaar voor vandaag</h3><p class="small muted">Doe de schrijfopdracht als je nog even door wilt, of pak de andere taal op.</p></div>`
     }
 
     ${
@@ -272,14 +293,14 @@ function renderToday() {
     }
 
     <div class="card flat" style="margin-top:20px">
-      <h3>🔊 Geluid</h3>
+      <h3>${icon("luidspreker", { size: 18 })} Geluid</h3>
       <p class="small muted" style="margin:0 0 10px">Hoor je niets tijdens het oefenen? Tik hier. Daarna staat hieronder wat de app aan jouw kant ziet gebeuren.</p>
-      <button class="btn ghost speak" data-probe="1" data-say="${esc(code === "fr" ? "Bonjour, comment ça va ?" : "Hola, ¿qué tal?")}">Test het geluid</button>
+      <button class="btn ghost speak" data-probe="1" data-say="${esc(code === "fr" ? "Bonjour, comment ça va ?" : "Hola, ¿qué tal?")}">${icon("luidspreker", { size: 16 })} Test het geluid</button>
       <div id="sounddiag" class="small muted" style="margin-top:10px"></div>
     </div>
 
     <div class="card flat" style="margin-top:20px">
-      <h3>${LOOK[other].flag} ${DECKS[other].meta.name}</h3>
+      <h3>${vlag(other, 16)} ${DECKS[other].meta.name}</h3>
       <p class="small muted" style="margin:0">${
         otherDone
           ? "Vandaag al gedaan. Mooi."
@@ -334,23 +355,23 @@ function renderCard() {
   const speakRow = parsed.empty
     ? `
     <div class="speak-row">
-      <button class="speak" data-say="${esc(item.target)}">Woord</button>
-      <button class="speak" data-say="${esc(item.target)}" data-slow="1">Langzaam</button>
+      <button class="speak" data-say="${esc(item.target)}">${icon("luidspreker", { size: 15 })} Woord</button>
+      <button class="speak" data-say="${esc(item.target)}" data-slow="1">${icon("luidspreker", { size: 15 })} Langzaam</button>
     </div>`
     : `
     <div class="speak-row">
-      <button class="speak" data-say="${esc(item.target)}">Woord</button>
-      <button class="speak" data-say="${esc(parsed.plain)}">Zin</button>
-      <button class="speak" data-say="${esc(parsed.plain)}" data-slow="1">Langzaam</button>
+      <button class="speak" data-say="${esc(item.target)}">${icon("luidspreker", { size: 15 })} Woord</button>
+      <button class="speak" data-say="${esc(parsed.plain)}">${icon("luidspreker", { size: 15 })} Zin</button>
+      <button class="speak" data-say="${esc(parsed.plain)}" data-slow="1">${icon("luidspreker", { size: 15 })} Langzaam</button>
     </div>`;
 
-  const note = (item.note ? `<p class="note">${item.note}</p>` : "") + conjTable(item);
+  const note = (item.note ? `<p class="note">${icon("vonk", { size: 15 })}<span>${item.note}</span></p>` : "") + conjTable(item);
   const chip = themeChip(item.theme);
 
   if (type === "intro") {
     app.innerHTML = `
       ${bar}
-      <p class="prompt">🌱 Nieuw woord</p>
+      <p class="prompt">${icon("kiem", { size: 17 })} Nieuw woord</p>
       <div class="card">
         ${chip}
         <p class="target">${esc(item.target)}</p>
@@ -373,7 +394,7 @@ function renderCard() {
   if (type === "recognise") {
     app.innerHTML = `
       ${bar}
-      <p class="prompt">🤔 Wat betekent dit?</p>
+      <p class="prompt">${thema("mening", { size: 17 })} Wat betekent dit?</p>
       <div class="card">
         ${chip}
         <p class="target">${esc(item.target)}</p>
@@ -402,18 +423,18 @@ function renderCard() {
   const answer = type === "produce" ? item.target : parsed.span;
   const heading =
     type === "produce"
-      ? "✏️ Hoe zeg je dit?"
+      ? `${icon("pen", { size: 17 })} Hoe zeg je dit?`
       : type === "listen"
-        ? "🎧 Luister en typ wat je hoort"
-        : "🧩 Vul de zin aan";
+        ? `${icon("koptelefoon", { size: 17 })} Luister en typ wat je hoort`
+        : `${icon("gat", { size: 17 })} Vul de zin aan`;
 
   const question =
     type === "produce"
       ? `<p class="target">${esc(item.nl)}</p>${item.sNl ? `<p class="sentence-nl">${esc(item.sNl)}</p>` : ""}`
       : type === "listen"
         ? `<p class="muted small">Typ het gemarkeerde deel van de zin.</p>
-           <div class="speak-row"><button class="speak" data-say="${esc(parsed.plain)}">Opnieuw afspelen</button>
-           <button class="speak" data-say="${esc(parsed.plain)}" data-slow="1">Langzaam</button></div>`
+           <div class="speak-row"><button class="speak" data-say="${esc(parsed.plain)}">${icon("luidspreker", { size: 15 })} Opnieuw afspelen</button>
+           <button class="speak" data-say="${esc(parsed.plain)}" data-slow="1">${icon("luidspreker", { size: 15 })} Langzaam</button></div>`
         : `<p class="sentence">${parsed.before}<span class="blank"></span>${parsed.after}</p>
            <p class="sentence-nl">${esc(item.sNl)}</p>`;
 
@@ -455,6 +476,7 @@ function renderCard() {
     document.getElementById("submit").remove();
     document.getElementById("result").innerHTML = `
       <div class="verdict ${verdict}">
+        <span class="v-teken">${icon(verdict === "goed" ? "vink" : verdict === "bijna" ? "half" : "kruis", { size: 22 })}</span>
         ${verdict === "goed" ? "Goed" : verdict === "bijna" ? "Bijna — let op de schrijfwijze" : "Niet goed"}
         <span class="answer">${esc(answer)}</span>
       </div>
@@ -626,14 +648,14 @@ function finishSession() {
 
   app.innerHTML = `
     <div class="done">
-      <div class="big">${LOOK[code].doodle}</div>
+      <div class="big">${doodleOfDay()}</div>
       <h1>Klaar!</h1>
       <p class="sub">${d.reviews} kaarten vandaag in het ${deck().meta.name}, ongeveer ${mins} ${mins === 1 ? "minuut" : "minuten"}.</p>
     </div>
     <button class="btn primary" id="towrite">Schrijfopdracht doen (2 min)</button>
     <div class="row" style="margin-top:8px">
       <button class="btn ghost" id="again">Nog een ronde</button>
-      <button class="btn ghost" id="switch">${LOOK[other].flag} ${DECKS[other].meta.name}${otherCounts.due + otherCounts.fresh > 0 ? ` (${otherCounts.due + otherCounts.fresh})` : ""}</button>
+      <button class="btn ghost" id="switch">${vlag(other, 15)} ${DECKS[other].meta.name}${otherCounts.due + otherCounts.fresh > 0 ? ` (${otherCounts.due + otherCounts.fresh})` : ""}</button>
     </div>`;
 
   document.getElementById("towrite").addEventListener("click", () => {
@@ -672,17 +694,17 @@ function renderWords() {
     .filter(({ w }) => !q || w[0].toLowerCase().includes(q) || w[1].toLowerCase().includes(q));
 
   const filters = [
-    ["alles", "Alles", "📖"],
-    ["w", "Werkwoorden", "🏃"],
-    ["z", "Zelfstandig", "🎒"],
-    ["b", "Bijvoeglijk", "🎨"],
-    ["f", "Functiewoorden", "🔗"],
+    ["alles", "Alles", "boek"],
+    ["w", "Werkwoorden", "werkwoorden"],
+    ["z", "Zelfstandig", "dingen"],
+    ["b", "Bijvoeglijk", "eigenschappen"],
+    ["f", "Functiewoorden", "schakel"],
   ];
 
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">📚</span>
-      <h1>${LOOK[code].flag} Woordenlijst</h1>
+      <span class="doodle">${icon("boek")}</span>
+      <h1>${vlag(code, 18)} Woordenlijst</h1>
       <p class="sub">${list.length} woorden, ongeveer op volgorde van hoe vaak je ze tegenkomt. ${added.length} staan er in je deck.</p>
     </div>
 
@@ -693,19 +715,19 @@ function renderWords() {
       ${filters
         .map(
           ([k, label, ico]) =>
-            `<button data-f="${k}" class="${k === wordFilter ? "on" : ""}">${ico} ${label}</button>`,
+            `<button data-f="${k}" class="${k === wordFilter ? "on" : ""}">${merk(ico, 15)} ${label}</button>`,
         )
         .join("")}
     </div>
 
-    <p class="small muted">Tik <b>+</b> om een woord aan je deck toe te voegen — het komt dan gewoon in de wachtrij van Vandaag. Tik 🔊 om het te horen.</p>
+    <p class="small muted">Tik <b>+</b> om een woord aan je deck toe te voegen — het komt dan gewoon in de wachtrij van Vandaag. Tik ${icon("luidspreker", { size: 15 })} om het te horen.</p>
 
     ${
       rows.length
         ? `<ol class="wordlist">
             ${rows
               .map(({ w, i }) => {
-                const [ico] = SOORT[w[2]] || ["📎"];
+                const [ico] = SOORT[w[2]] || ["overig"];
                 const on = added.includes(i);
                 return `<li>
                   <span class="rank">${i + 1}</span>
@@ -713,14 +735,14 @@ function renderWords() {
                     <b>${esc(w[0])}</b>
                     <span class="muted">${esc(w[1])}</span>
                   </span>
-                  <button class="wl-say" data-say="${esc(w[0])}" title="Uitspreken">🔊</button>
-                  <button class="wl-add ${on ? "on" : ""}" data-add="${i}" title="${on ? "Uit je deck halen" : "Aan je deck toevoegen"}">${on ? "✓" : "+"}</button>
-                  <span class="wl-kind">${ico}</span>
+                  <button class="wl-say" data-say="${esc(w[0])}" title="Uitspreken">${icon("luidspreker", { size: 16 })}</button>
+                  <button class="wl-add ${on ? "on" : ""}" data-add="${i}" title="${on ? "Uit je deck halen" : "Aan je deck toevoegen"}">${icon(on ? "vink" : "plus", { size: 16 })}</button>
+                  <span class="wl-kind">${merk(ico, 15)}</span>
                 </li>`;
               })
               .join("")}
           </ol>`
-        : `<div class="card"><h3>🤷 Niets gevonden</h3><p class="small muted">Geen woord in deze lijst dat op “${esc(wordQuery)}” lijkt. De lijst groeit nog — dit is de eerste batch.</p></div>`
+        : `<div class="card"><h3>${icon("loep", { size: 18 })} Niets gevonden</h3><p class="small muted">Geen woord in deze lijst dat op “${esc(wordQuery)}” lijkt. De lijst groeit nog — dit is de eerste batch.</p></div>`
     }`;
 
   const search = document.getElementById("wordsearch");
@@ -756,7 +778,7 @@ function renderWords() {
     const i = Number(add.dataset.add);
     const now = store.toggleAdded(code, i);
     add.classList.toggle("on", now);
-    add.textContent = now ? "✓" : "+";
+    add.innerHTML = icon(now ? "vink" : "plus", { size: 16 });
     toast(
       now
         ? `“${FREQ[code][i][0]}” staat nu in je deck. Je krijgt het vanzelf voorbij bij Vandaag.`
@@ -783,13 +805,13 @@ function renderToetsKeuze() {
 
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">📝</span>
+      <span class="doodle">${icon("blad")}</span>
       <h1>Toets</h1>
       <p class="sub">Alles invullen, daarna pas nakijken. Juist dat uitstel dwingt je het antwoord echt op te halen in plaats van te herkennen.</p>
     </div>
 
     <div class="card">
-      <h3>🗂️ Woorden</h3>
+      <h3>${icon("bak", { size: 18 })} Woorden</h3>
       ${
         gekend < 4
           ? `<p class="small muted" style="margin:6px 0 0">Je hebt ${gekend} ${gekend === 1 ? "woord" : "woorden"} geoefend. Vanaf een stuk of vier wordt een toets zinvol — doe eerst een ronde bij Vandaag.</p>`
@@ -801,7 +823,7 @@ function renderToetsKeuze() {
     </div>
 
     <div class="card">
-      <h3>🔀 Vervoegingen</h3>
+      <h3>${icon("wissel", { size: 18 })} Vervoegingen</h3>
       <p class="small muted" style="margin:6px 0 12px">Kies een werkwoord en een tijd, en schrijf het hele rijtje op. ${
         code === "fr"
           ? "Het voornaamwoord mag je weglaten: <i>étais</i> rekent net zo goed als <i>tu étais</i>."
@@ -809,12 +831,12 @@ function renderToetsKeuze() {
       }</p>
       <label class="lbl" for="vkeuze">Werkwoord</label>
       <select id="vkeuze">
-        <option value="__random">🎲 Verras me</option>
+        <option value="__random">Verras me</option>
         ${verbs.map((v, i) => `<option value="${i}">${esc(v.inf)} — ${esc(v.nl)}</option>`).join("")}
       </select>
       <label class="lbl" for="tkeuze" style="margin-top:10px">Tijd</label>
       <select id="tkeuze">
-        <option value="__random">🎲 Verras me</option>
+        <option value="__random">Verras me</option>
         ${TIJDEN[code].map((t) => `<option value="${t.id}">${esc(t.naam)} (${esc(t.bij)})</option>`).join("")}
       </select>
       <button class="btn primary" id="startv" style="margin-top:14px">Begin het rijtje</button>
@@ -857,13 +879,13 @@ function renderToetsVragen() {
       ? (() => {
           const t = TIJDEN[code].find((x) => x.id === toets.tijd);
           return `<div class="hero">
-            <span class="doodle">🔀</span>
+            <span class="doodle">${icon("wissel")}</span>
             <h1>${esc(toets.verb.inf)}</h1>
             <p class="sub">${esc(t.naam)} — <i>${esc(t.bij)}</i>. ${esc(toets.verb.nl)}.</p>
           </div>`;
         })()
       : `<div class="hero">
-           <span class="doodle">🗂️</span>
+           <span class="doodle">${icon("bak")}</span>
            <h1>Woordentoets</h1>
            <p class="sub">${vragen.length} vragen. Vul alles in wat je weet en laat de rest leeg.</p>
          </div>`;
@@ -946,12 +968,12 @@ function renderToetsUitslag() {
 
   const oordeel =
     u.score >= 90
-      ? ["🏆", "Dit zit erin."]
+      ? ["trofee", "Dit zit erin."]
       : u.score >= 70
-        ? ["👍", "Ruim voldoende. De missers hieronder zijn je volgende ronde."]
+        ? ["duim", "Ruim voldoende. De missers hieronder zijn je volgende ronde."]
         : u.score >= 40
-          ? ["🌱", "Er zit een basis. Neem de fouten door en toets over een paar dagen opnieuw."]
-          : ["🧭", "Dit materiaal is nog te vers. Oefen het eerst bij Vandaag; toetsen werkt pas als er iets op te halen valt."];
+          ? ["kiem", "Er zit een basis. Neem de fouten door en toets over een paar dagen opnieuw."]
+          : ["kompas", "Dit materiaal is nog te vers. Oefen het eerst bij Vandaag; toetsen werkt pas als er iets op te halen valt."];
 
   const regels = u.per
     .map(({ vraag, gegeven, oordeel: o }) => {
@@ -961,20 +983,20 @@ function renderToetsUitslag() {
         <div class="uit-cue">${esc(cue)}</div>
         <div class="uit-jij">${gegeven ? esc(gegeven) : "<i>niets ingevuld</i>"}</div>
         ${o === "goed" ? "" : `<div class="uit-goed">${esc(vraag.antwoord)}</div>`}
-        <button class="speak uit-say" data-say="${esc(vraag.volledig || vraag.antwoord)}" title="Uitspreken">🔊</button>
+        <button class="speak uit-say" data-say="${esc(vraag.volledig || vraag.antwoord)}" title="Uitspreken">${icon("luidspreker", { size: 16 })}</button>
       </li>`;
     })
     .join("");
 
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">${oordeel[0]}</span>
+      <span class="doodle">${icon(oordeel[0])}</span>
       <h1>${u.score}%</h1>
       <p class="sub">${esc(oordeel[1])}</p>
     </div>
 
     <div class="card flat">
-      <p style="margin:0">✅ ${u.goed} goed &nbsp;•&nbsp; 🟡 ${u.bijna} bijna &nbsp;•&nbsp; ❌ ${u.fout} fout</p>
+      <p class="tally">${icon("vink", { size: 17 })} ${u.goed} goed <i>•</i> ${icon("half", { size: 17 })} ${u.bijna} bijna <i>•</i> ${icon("kruis", { size: 17 })} ${u.fout} fout</p>
       ${u.bijna ? `<p class="small muted" style="margin:8px 0 0">“Bijna” is een accent of één letter mis. Die tellen half mee — je kende het woord, je schreef het net niet goed.</p>` : ""}
     </div>
 
@@ -1020,27 +1042,27 @@ function renderWrite() {
 
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">✍️</span>
+      <span class="doodle">${icon("pen")}</span>
       <h1>Schrijven</h1>
       <p class="sub">Twee of drie zinnen is genoeg. Zonder woordenboek: waar je vastloopt, zit je volgende leerdoel.</p>
     </div>
 
     <div class="card">
-      <h3>📝 Opdracht van vandaag</h3>
+      <h3>${icon("blad", { size: 18 })} Opdracht van vandaag</h3>
       <p class="sentence" style="margin:6px 0 0">${esc(prompt)}</p>
     </div>
 
     <textarea id="text" lang="${deck().meta.locale}" placeholder="Schrijf hier in het ${deck().meta.name}…"></textarea>
     <div class="accents">${ACCENTS[code].map((a) => `<button data-ch="${a}">${a}</button>`).join("")}</div>
     <div class="row" style="margin-top:12px">
-      <button class="btn" id="say">🔊 Voorlezen</button>
-      <button class="btn" id="checkit">🔍 Nakijken</button>
+      <button class="btn" id="say">${icon("luidspreker", { size: 16 })} Voorlezen</button>
+      <button class="btn" id="checkit">${icon("loep", { size: 16 })} Nakijken</button>
       <button class="btn primary" id="save">Opslaan</button>
     </div>
     <div id="review"></div>
-    ${doneToday ? `<p class="small muted" style="margin-top:10px">✅ Je hebt vandaag al geschreven. Nog een keer mag altijd.</p>` : ""}
+    ${doneToday ? `<p class="small muted" style="margin-top:10px">${icon("vink", { size: 14 })} Je hebt vandaag al geschreven. Nog een keer mag altijd.</p>` : ""}
 
-    <h2>📚 Eerder geschreven</h2>
+    <h2>${icon("boek", { size: 20 })} Eerder geschreven</h2>
     ${
       entries.length
         ? entries
@@ -1109,10 +1131,10 @@ function showReview(text) {
   const fouten = r.bevindingen.filter((b) => b.ernst === "fout").length;
 
   const kop = fouten
-    ? `🔍 ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "opmerking" : "opmerkingen"}`
+    ? `${icon("loep", { size: 18 })} ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "opmerking" : "opmerkingen"}`
     : r.bevindingen.length
-      ? `🙂 Bijna foutloos — ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "kleinigheid" : "kleinigheden"}`
-      : `✅ Ik zie niets fout`;
+      ? `${icon("half", { size: 18 })} Bijna foutloos — ${r.bevindingen.length} ${r.bevindingen.length === 1 ? "kleinigheid" : "kleinigheden"}`
+      : `${icon("vink", { size: 18 })} Ik zie niets fout`;
 
   const lijst = r.bevindingen
     .map(
@@ -1132,7 +1154,7 @@ function showReview(text) {
       ${r.meer ? `<p class="small muted">…en nog ${r.meer} andere. Pak eerst deze.</p>` : ""}
       ${
         r.gebruikt.length
-          ? `<p class="small" style="margin:10px 0 0">💪 Je gebruikte woorden die je aan het leren bent: <b>${r.gebruikt.map(esc).join(", ")}</b>.</p>`
+          ? `<p class="small" style="margin:10px 0 0">${icon("vonk", { size: 14 })} Je gebruikte woorden die je aan het leren bent: <b>${r.gebruikt.map(esc).join(", ")}</b>.</p>`
           : ""
       }
       ${
@@ -1156,23 +1178,23 @@ function showReview(text) {
 function renderPlan() {
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">🗺️</span>
+      <span class="doodle">${icon("kaart")}</span>
       <h1>Je studieplan</h1>
       <p class="sub">Frans en Spaans, allebei vanaf ingezakte schoolkennis, ongeveer tien minuten per taal per dag.</p>
     </div>
 
     <div class="card"><p style="margin:0">${plan.kern}</p></div>
 
-    <h2>⏱️ Elke dag, tien minuten</h2>
+    <h2>${thema("tijd", { size: 20 })} Elke dag, tien minuten</h2>
     <dl class="timeline">
       ${plan.sessie.map((s) => `<dt>${s.t}</dt><dd><b>${s.k}</b>${s.d}</dd>`).join("")}
     </dl>
 
-    <h2>🇫🇷 🇪🇸 Twee talen tegelijk</h2>
+    <h2><span class="tweevlag">${vlag("fr", 15)}${vlag("es", 15)}</span> Twee talen tegelijk</h2>
     <p class="small">${plan.interferentie}</p>
     <ul class="clean">${plan.interferentieRegels.map((r) => `<li>${r}</li>`).join("")}</ul>
 
-    <h2>📈 De vier fases</h2>
+    <h2>${icon("grafiek", { size: 20 })} De vier fases</h2>
     ${plan.fases
       .map(
         (f) => `<div class="phase">
@@ -1185,7 +1207,7 @@ function renderPlan() {
       )
       .join("")}
 
-    <h2>⚖️ Vijf regels</h2>
+    <h2>${icon("weegschaal", { size: 20 })} Vijf regels</h2>
     ${plan.regels
       .map(
         (r) => `<div class="card"><h3>${r.k}</h3><p class="small muted" style="margin:0">${r.d}</p></div>`,
@@ -1214,7 +1236,7 @@ function renderStats() {
         });
       return `
         <div class="card">
-          <h3>${LOOK[c].flag} ${DECKS[c].meta.name}</h3>
+          <h3>${vlag(c, 16)} ${DECKS[c].meta.name}</h3>
           <p class="small muted">${st.seen} van ${st.total} items gestart · ${st.mature} stevig verankerd (interval &gt; 3 weken)</p>
           ${phases
             .map(
@@ -1239,13 +1261,13 @@ function renderStats() {
 
   app.innerHTML = `
     <div class="hero">
-      <span class="doodle">📈</span>
+      <span class="doodle">${icon("grafiek")}</span>
       <h1>Voortgang</h1>
       <p class="sub">Reeks van ${store.streak()} ${store.streak() === 1 ? "dag" : "dagen"}.</p>
     </div>
     ${blocks}
 
-    <h2>⚙️ Instellingen</h2>
+    <h2>${icon("schuiven", { size: 20 })} Instellingen</h2>
     <div class="card">
       <h3>Nieuwe woorden per dag</h3>
       <p class="small muted">Per taal. Vijf is bewust laag: het bepaalt hoe groot je herhaalberg over drie weken is.</p>
@@ -1254,12 +1276,12 @@ function renderStats() {
       </div>
     </div>
 
-    <h2>💾 Back-up</h2>
+    <h2>${icon("schijf", { size: 20 })} Back-up</h2>
     <div class="card">
       <p class="small muted">Je voortgang staat alleen in deze browser. Exporteer af en toe, zeker voor je iOS bijwerkt.</p>
       <div class="row">
-        <button class="btn" id="export">⬇️ Exporteren</button>
-        <button class="btn ghost" id="import">⬆️ Importeren</button>
+        <button class="btn" id="export">${icon("omlaag", { size: 16 })} Exporteren</button>
+        <button class="btn ghost" id="import">${icon("omhoog", { size: 16 })} Importeren</button>
       </div>
       <input type="file" id="file" accept="application/json" hidden>
     </div>`;
